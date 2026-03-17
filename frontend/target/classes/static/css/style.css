@@ -1,0 +1,137 @@
+body {
+    background-color: #0b0b0b;
+    color: #e6e6e6;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+a {
+    color: #9ecbff;
+    text-decoration: none;
+}
+a:hover {
+    color: #c8e2ff;
+}
+
+.navbar {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+
+.card {
+    border-radius: 14px;
+}
+.card-dark {
+    background-color: #131313;
+    border: 1px solid #1f1f1f;
+    color: #e0e0e0;
+}
+
+.btn-primary {
+    background-image: linear-gradient(45deg, #6a8cff, #2b6ef5);
+    border: none;
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    color: #fff;
+}
+.btn-primary:hover {
+    filter: brightness(1.1);
+}
+.btn-outline-primary {
+    color: #9ecbff;
+    border-color: #2b6ef5;
+}
+.btn-outline-primary:hover {
+    background-color: #2b6ef5;
+    color: #fff;
+}
+
+.form-dark {
+    background-color: #1a1a1a !important;
+    border: 1px solid #2a2a2a !important;
+    color: #e0e0e0 !important;
+}
+.form-dark::placeholder {
+    color: #9a9a9a;
+}
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(43, 110, 245, 0.25);
+    border-color: #2b6ef5;
+}
+
+.alert {
+    border-radius: 10px;
+}
+.badge {
+    padding: 0.5em 0.8em;
+    font-weight: 500;
+}
+
+.hero {
+    background: linear-gradient(135deg, #0f0f0f 0%, #141414 40%, #0f0f0f 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    border: 1px solid #1f1f1f;
+}
+.hero-title {
+    font-size: 2rem;
+    font-weight: 700;
+}
+.hero-subtitle {
+    color: #b0b0b0;
+}
+
+.category-tabs .nav-link {
+    color: #cfcfcf;
+    border: 1px solid #222;
+    background-color: #121212;
+}
+.category-tabs .nav-link.active {
+    color: #fff;
+    background-color: #2b6ef5;
+    border-color: #2b6ef5;
+}
+
+.thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0f0f0f;
+    border: 1px solid #1f1f1f;
+}
+.thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.thumb .overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%);
+    padding: 0.75rem;
+}
+.thumb .title {
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0;
+}
+.thumb .meta {
+    color: #cfcfcf;
+    font-size: 0.8rem;
+}
+
+.grid-card {
+    background-color: #121212;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    padding: 0.5rem;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+}

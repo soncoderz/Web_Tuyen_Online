@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head}"></head>
+<body class="bg-dark text-light">
+    <div th:replace="~{layout :: navbar}"></div>
+
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 card-dark">
+                    <div class="card-body">
+                        <h2 class="text-center mb-4">Đăng nhập</h2>
+                        <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+                        <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+                        <form th:action="@{/login}" method="post">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Tên đăng nhập</label>
+                                <input type="text" class="form-control form-dark" id="username" name="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Mật khẩu</label>
+                                <input type="password" class="form-control form-dark" id="password" name="password" required>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Đăng nhập</button>
+                            </div>
+                            <div class="mt-3 text-center">
+                                <a th:href="@{/forgot-password}">Quên mật khẩu?</a>
+                                <span class="mx-2">|</span>
+                                <a th:href="@{/register}">Tạo tài khoản mới</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head}"></head>
+<body class="bg-light">
+    <div th:replace="~{layout :: navbar}"></div>
+
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <h3 class="mb-0">Thử nghiệm dịch vụ Email</h3>
+                    </div>
+                    <div class="card-body py-4">
+                        <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+                        <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+                        <ul class="nav nav-tabs mb-4" id="emailTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="simple-tab" data-bs-toggle="tab" data-bs-target="#simple" type="button" role="tab">Gửi email đơn giản</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="notification-tab" data-bs-toggle="tab" data-bs-target="#notification" type="button" role="tab">Gửi thông báo</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="emailTabContent">
+                            <!-- Simple Email Form -->
+                            <div class="tab-pane fade show active" id="simple" role="tabpanel">
+                                <form th:action="@{/email/send-simple}" method="post">
+                                    <div class="mb-3">
+                                        <label for="toEmailSimple" class="form-label">Email người nhận</label>
+                                        <input type="email" class="form-control" id="toEmailSimple" name="toEmail" required placeholder="example@domain.com">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="subjectSimple" class="form-label">Tiêu đề</label>
+                                        <input type="text" class="form-control" id="subjectSimple" name="subject" required placeholder="Chào mừng bạn">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="contentSimple" class="form-label">Nội dung</label>
+                                        <textarea class="form-control" id="contentSimple" name="content" rows="4" required placeholder="Nội dung tin nhắn..."></textarea>
+                                    </div>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary shadow-sm">Gửi email ngay</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Notification Email Form -->
+                            <div class="tab-pane fade" id="notification" role="tabpanel">
+                                <form th:action="@{/email/send-notification}" method="post">
+                                    <div class="mb-3">
+                                        <label for="toEmailNotif" class="form-label">Email người nhận</label>
+                                        <input type="email" class="form-control" id="toEmailNotif" name="toEmail" required placeholder="example@domain.com">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="titleNotif" class="form-label">Tiêu đề thông báo</label>
+                                        <input type="text" class="form-control" id="titleNotif" name="title" required placeholder="Thông báo mới">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="messageNotif" class="form-label">Nội dung thông báo</label>
+                                        <textarea class="form-control" id="messageNotif" name="message" rows="4" required placeholder="Nội dung thông báo..."></textarea>
+                                    </div>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-success shadow-sm">Gửi thông báo</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

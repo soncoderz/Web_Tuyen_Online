@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head}"></head>
+<body class="bg-dark text-light">
+    <div th:replace="~{layout :: navbar}"></div>
+
+    <div class="container mt-4 reader-container">
+        <div class="d-flex justify-content-between align-items-center mb-3 reader-nav">
+            <div>
+                <a th:href="@{'/truyen/' + ${comicId}}" class="btn btn-outline-primary btn-sm">Quay lại truyện</a>
+            </div>
+            <div>
+                <span class="me-3" th:text="${comicTitle}">Tên truyện</span>
+                <span>Chương <span th:text="${chapter}">1</span></span>
+            </div>
+        </div>
+
+        <div class="page mb-3" th:each="p : ${pages}">
+            <img th:src="${p}" alt="page" class="img-fluid w-100">
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-4 reader-nav">
+            <a th:href="@{'/doc/' + ${comicId} + '/' + (${chapter} - 1)}" class="btn btn-outline-primary btn-sm" th:if="${chapter > 1}">Chương trước</a>
+            <a th:href="@{'/doc/' + ${comicId} + '/' + (${chapter} + 1)}" class="btn btn-outline-primary btn-sm">Chương sau</a>
+        </div>
+    </div>
+
+    <div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

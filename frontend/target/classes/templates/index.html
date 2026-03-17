@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head}"></head>
+<body class="bg-dark text-light">
+    <div th:replace="~{layout :: navbar}"></div>
+
+    <main>
+        <div class="container my-5">
+            <div class="hero text-center">
+                <h1 class="hero-title">Web Tuyen Online</h1>
+                <p class="hero-subtitle">Nền tảng trực tuyến hiện đại với giao diện tối, dễ sử dụng và trực quan</p>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-3">
+                    <a th:href="@{/login}" class="btn btn-primary btn-lg px-4 gap-3 shadow" th:if="${session.token == null}">Bắt đầu ngay</a>
+                    <a th:href="@{/dashboard}" class="btn btn-primary btn-lg px-4 gap-3 shadow" th:if="${session.token != null}">Bảng điều khiển</a>
+                    <a th:href="@{/register}" class="btn btn-outline-primary btn-lg px-4 shadow-sm" th:if="${session.token == null}">Đăng ký tài khoản</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container px-4 py-5">
+            <h2 class="pb-2 mb-3 section-title">Tính năng nổi bật</h2>
+            <div class="row g-4 row-cols-1 row-cols-lg-3">
+                <div class="col">
+                    <div class="grid-card">
+                        <div class="thumb">
+                            <img src="https://picsum.photos/seed/feature1/480/640" alt="feature">
+                            <div class="overlay">
+                                <p class="title">Quản lý người dùng</p>
+                                <p class="meta">Phân quyền bảo mật với JWT</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="grid-card">
+                        <div class="thumb">
+                            <img src="https://picsum.photos/seed/feature2/480/640" alt="feature">
+                            <div class="overlay">
+                                <p class="title">Hệ thống Email</p>
+                                <p class="meta">Thông báo & xác nhận tự động</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="grid-card">
+                        <div class="thumb">
+                            <img src="https://picsum.photos/seed/feature3/480/640" alt="feature">
+                            <div class="overlay">
+                                <p class="title">Hỗ trợ 24/7</p>
+                                <p class="meta">Luôn sẵn sàng đồng hành</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head}"></head>
+<body class="bg-dark text-light">
+    <div th:replace="~{layout :: navbar}"></div>
+
+    <div class="container mt-4">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="thumb">
+                    <img th:src="${comic.cover}" alt="cover">
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h2 th:text="${comic.title}">Tên truyện</h2>
+                <p class="text-secondary mb-2">
+                    <span class="badge bg-secondary me-2" th:text="${comic.status}">Đang cập nhật</span>
+                    <span class="badge bg-secondary me-2">Ch.<span th:text="${comic.latestChapter}">10</span></span>
+                    <span class="badge bg-secondary">Lượt xem: <span th:text="${comic.views}">1000</span></span>
+                </p>
+                <div class="mb-3" th:if="${comic.genres}">
+                    <span class="badge bg-dark border border-secondary me-2" th:each="g : ${comic.genres}" th:text="${g}">Thể loại</span>
+                </div>
+                <p th:text="${comic.description}">Mô tả truyện</p>
+
+                <h5 class="mt-4">Danh sách chương</h5>
+                <div class="row g-2">
+                    <div class="col-6 col-md-3" th:each="ch : ${chapters}">
+                        <a th:href="@{'/doc/' + ${comic.id} + '/' + ${ch.number}}" class="btn btn-outline-primary w-100">
+                            Chương <span th:text="${ch.number}">1</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

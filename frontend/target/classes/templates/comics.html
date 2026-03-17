@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head}"></head>
+<body class="bg-dark text-light">
+    <div th:replace="~{layout :: navbar}"></div>
+
+    <div class="container mt-4">
+        <div class="hero mb-4">
+            <div class="row align-items-center">
+                <div class="col">
+                    <div class="hero-title">Danh sách truyện</div>
+                    <div class="hero-subtitle">Khám phá các bộ truyện mới cập nhật và thịnh hành</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="d-flex flex-wrap gap-2">
+                <a th:href="@{/truyen}" class="btn btn-outline-primary btn-sm">Tất cả</a>
+                <a th:href="@{/truyen(q='hanh-dong')}" class="btn btn-outline-primary btn-sm">Hành động</a>
+                <a th:href="@{/truyen(q='hoc-duong')}" class="btn btn-outline-primary btn-sm">Học đường</a>
+                <a th:href="@{/truyen(q='phieu-luu')}" class="btn btn-outline-primary btn-sm">Phiêu lưu</a>
+                <a th:href="@{/truyen(q='hai-huoc')}" class="btn btn-outline-primary btn-sm">Hài hước</a>
+                <a th:href="@{/truyen(q='lang-man')}" class="btn btn-outline-primary btn-sm">Lãng mạn</a>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-6 col-md-3" th:each="c : ${comics}">
+                <a th:href="@{'/truyen/' + ${c.id}}" class="text-decoration-none">
+                    <div class="grid-card">
+                        <div class="thumb">
+                            <img th:src="${c.cover}" alt="cover">
+                            <div class="overlay">
+                                <p class="title" th:text="${c.title}">Tiêu đề</p>
+                                <p class="meta">
+                                    <span th:text="${c.status}">Đang cập nhật</span> • 
+                                    Ch.<span th:text="${c.latestChapter}">10</span> • 
+                                    <span th:text="${c.views}">1000</span> lượt xem
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="~{layout :: footer}"></div>
+</body>
+</html>
