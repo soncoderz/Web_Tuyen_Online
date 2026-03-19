@@ -1,7 +1,9 @@
 package com.example.backend.model;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.annotation.Id;
@@ -24,6 +26,8 @@ public class Story {
 
     private String coverImage;
 
+    private EStoryType type = EStoryType.NOVEL;
+
     private EStoryStatus status = EStoryStatus.ONGOING;
 
     private Long views = 0L;
@@ -41,6 +45,8 @@ public class Story {
 
     @DBRef
     private Set<Author> authors = new HashSet<>();
+
+    private List<String> relatedStoryIds = new ArrayList<>();
 
     private Date createdAt = new Date();
     private Date updatedAt = new Date();
@@ -94,4 +100,10 @@ public class Story {
 
     public Date getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
+
+    public EStoryType getType() { return type; }
+    public void setType(EStoryType type) { this.type = type; }
+
+    public List<String> getRelatedStoryIds() { return relatedStoryIds; }
+    public void setRelatedStoryIds(List<String> relatedStoryIds) { this.relatedStoryIds = relatedStoryIds; }
 }

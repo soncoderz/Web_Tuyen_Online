@@ -63,7 +63,8 @@ public class StoryController {
     public ResponseEntity<List<Story>> searchStories(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type) {
         List<Story> allStories = storyRepository.findAll();
         List<Story> filtered = new ArrayList<>();
 
@@ -88,6 +89,10 @@ public class StoryController {
                 if (!story.getStatus().name().equals(status)) match = false;
             }
 
+            if (type != null && !type.isEmpty() && match) {
+                if (!story.getType().name().equals(type)) match = false;
+            }
+
             if (match) filtered.add(story);
         }
 
@@ -101,6 +106,12 @@ public class StoryController {
 
         if (request.getCoverImage() != null) {
             story.setCoverImage(request.getCoverImage());
+        }
+        if (request.getType() != null) {
+            story.setType(request.getType());
+        }
+        if (request.getRelatedStoryIds() != null) {
+            story.setRelatedStoryIds(request.getRelatedStoryIds());
         }
 
         Set<Category> categories = new HashSet<>();
@@ -144,6 +155,12 @@ public class StoryController {
 
             if (request.getStatus() != null) {
                 story.setStatus(request.getStatus());
+            }
+            if (request.getType() != null) {
+                story.setType(request.getType());
+            }
+            if (request.getRelatedStoryIds() != null) {
+                story.setRelatedStoryIds(request.getRelatedStoryIds());
             }
 
             if (request.getCategoryIds() != null) {
@@ -240,5 +257,21 @@ public class StoryController {
             return ResponseEntity.ok(java.util.Map.of("isFollowing", isFollowing));
         }
         return ResponseEntity.ok(java.util.Map.of("isFollowing", false));
+    }
+
+    @GetMapping("/{id}/related")
+    public ResponseEntity<?> getRelatedStories(@PathVariable String id) {
+        Optional<Story> storyOpt = storyRepository.findById(id);
+        if (storyOpt.isPresent()) {
+            Story story = storyOpt.get();
+            List<Story> related = new ArrayList<>();
+            if (story.getRelatedStoryIds() != null) {
+                for (String rid : story.getRelatedStoryIds()) {
+                    storyRepository.findById(rid).ifPresent(related::add);
+                }
+            }
+            return ResponseEntity.ok(related);
+        }
+        return ResponseEntity.ok(List.of());
     }
 }

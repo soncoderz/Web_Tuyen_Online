@@ -1,10 +1,12 @@
 package com.example.backend.payload.request;
 
+import java.util.List;
 import java.util.Set;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import com.example.backend.model.EStoryStatus;
+import com.example.backend.model.EStoryType;
 
 public class StoryRequest {
     @NotBlank
@@ -18,6 +20,10 @@ public class StoryRequest {
     private Set<String> categoryIds;
 
     private String coverImage;
+
+    private EStoryType type;
+
+    private List<String> relatedStoryIds;
 
     private Set<String> authorIds;
 
@@ -68,4 +74,10 @@ public class StoryRequest {
     public void setCoverImage(String coverImage) {
         this.coverImage = coverImage;
     }
+
+    public EStoryType getType() { return type; }
+    public void setType(EStoryType type) { this.type = type; }
+
+    public List<String> getRelatedStoryIds() { return relatedStoryIds; }
+    public void setRelatedStoryIds(List<String> relatedStoryIds) { this.relatedStoryIds = relatedStoryIds; }
 }

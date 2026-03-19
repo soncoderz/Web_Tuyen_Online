@@ -1,6 +1,8 @@
 package com.example.backend.model;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -22,8 +24,9 @@ public class Chapter {
     @NotBlank
     private String title;
 
-    @NotBlank
     private String content;
+
+    private List<String> pages = new ArrayList<>();
 
     private Date createdAt = new Date();
     private Date updatedAt = new Date();
@@ -57,4 +60,7 @@ public class Chapter {
 
     public Date getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
+
+    public List<String> getPages() { return pages; }
+    public void setPages(List<String> pages) { this.pages = pages; }
 }

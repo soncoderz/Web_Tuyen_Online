@@ -53,6 +53,9 @@ public class ChapterController {
     public ResponseEntity<?> createChapter(@Valid @RequestBody ChapterRequest request) {
         Chapter chapter = new Chapter(request.getStoryId(), request.getChapterNumber(),
                 request.getTitle(), request.getContent());
+        if (request.getPages() != null) {
+            chapter.setPages(request.getPages());
+        }
         chapterRepository.save(chapter);
 
         // Send notifications to followers
@@ -81,6 +84,9 @@ public class ChapterController {
             chapter.setTitle(request.getTitle());
             chapter.setContent(request.getContent());
             chapter.setChapterNumber(request.getChapterNumber());
+            if (request.getPages() != null) {
+                chapter.setPages(request.getPages());
+            }
             chapter.setUpdatedAt(new Date());
             return ResponseEntity.ok(chapterRepository.save(chapter));
         }
