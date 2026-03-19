@@ -1,0 +1,97 @@
+package com.example.backend.model;
+
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+@Document(collection = "stories")
+public class Story {
+    @Id
+    private String id;
+
+    @NotBlank
+    @Size(max = 200)
+    private String title;
+
+    private String description;
+
+    private String coverImage;
+
+    private EStoryStatus status = EStoryStatus.ONGOING;
+
+    private Long views = 0L;
+
+    private Long followers = 0L;
+
+    private Double averageRating = 0.0;
+
+    private Integer totalRatings = 0;
+
+    private String uploaderId;
+
+    @DBRef
+    private Set<Category> categories = new HashSet<>();
+
+    @DBRef
+    private Set<Author> authors = new HashSet<>();
+
+    private Date createdAt = new Date();
+    private Date updatedAt = new Date();
+
+    public Story() {}
+
+    public Story(String title, String description, EStoryStatus status) {
+        this.title = title;
+        this.description = description;
+        this.status = status;
+    }
+
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getCoverImage() { return coverImage; }
+    public void setCoverImage(String coverImage) { this.coverImage = coverImage; }
+
+    public EStoryStatus getStatus() { return status; }
+    public void setStatus(EStoryStatus status) { this.status = status; }
+
+    public Long getViews() { return views; }
+    public void setViews(Long views) { this.views = views; }
+
+    public Long getFollowers() { return followers; }
+    public void setFollowers(Long followers) { this.followers = followers; }
+
+    public Double getAverageRating() { return averageRating; }
+    public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
+
+    public Integer getTotalRatings() { return totalRatings; }
+    public void setTotalRatings(Integer totalRatings) { this.totalRatings = totalRatings; }
+
+    public String getUploaderId() { return uploaderId; }
+    public void setUploaderId(String uploaderId) { this.uploaderId = uploaderId; }
+
+    public Set<Category> getCategories() { return categories; }
+    public void setCategories(Set<Category> categories) { this.categories = categories; }
+
+    public Set<Author> getAuthors() { return authors; }
+    public void setAuthors(Set<Author> authors) { this.authors = authors; }
+
+    public Date getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
+
+    public Date getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
+}
