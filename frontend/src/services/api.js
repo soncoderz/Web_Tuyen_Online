@@ -82,4 +82,15 @@ export const updateReportStatus = (id, status) => api.put(`/reports/${id}/status
 // Admin
 export const getAdminStats = () => api.get('/admin/stats');
 
+// Upload (Cloudinary)
+export const uploadImage = (file) => {
+  const fd = new FormData(); fd.append('file', file);
+  return api.post('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+};
+export const uploadMangaPages = (files) => {
+  const fd = new FormData();
+  files.forEach(f => fd.append('files', f));
+  return api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+};
+
 export default api;
