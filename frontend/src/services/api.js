@@ -32,6 +32,7 @@ export const incrementViews = (id) => api.put(`/stories/${id}/views`);
 export const followStory = (id) => api.post(`/stories/${id}/follow`);
 export const isFollowing = (id) => api.get(`/stories/${id}/is-following`);
 export const getRelatedStories = (id) => api.get(`/stories/${id}/related`);
+export const getFollowedStories = () => api.get('/stories/following');
 
 // Categories
 export const getCategories = () => api.get('/categories');

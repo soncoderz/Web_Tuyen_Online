@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getReadingHistory, getBookmarks, deleteBookmark, deleteReadingHistoryItem, getStory } from '../services/api';
+import { getReadingHistory, getBookmarks, deleteBookmark, deleteReadingHistoryItem, getStory, getFollowedStories } from '../services/api';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -10,6 +10,7 @@ export default function Profile() {
   const [tab, setTab] = useState(searchParams.get('tab') || 'history');
   const [history, setHistory] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
+  const [followedStories, setFollowedStories] = useState([]);
   const [storyCache, setStoryCache] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -26,9 +27,10 @@ export default function Profile() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [hRes, bRes] = await Promise.all([getReadingHistory(), getBookmarks()]);
+      const [hRes, bRes, fRes] = await Promise.all([getReadingHistory(), getBookmarks(), getFollowedStories()]);
       setHistory(hRes.data);
       setBookmarks(bRes.data);
+      setFollowedStories(fRes.data || []);
 
       // Load story titles
       const ids = new Set([
@@ -82,7 +84,7 @@ export default function Profile() {
           📑 Bookmark ({bookmarks.length})
         </button>
         <button className={`tab ${tab === 'following' ? 'active' : ''}`} onClick={() => setTab('following')}>
-          ❤️ Theo dõi
+          ❤️ Theo dõi ({followedStories.length})
         </button>
       </div>
 
@@ -137,17 +139,21 @@ export default function Profile() {
 
           {tab === 'following' && (
             <div className="card">
-              {user.followedStoryIds?.length > 0 ? (
+              {followedStories.length > 0 ? (
                 <div className="story-grid">
-                  {user.followedStoryIds.map(sid => (
-                    <Link key={sid} to={`/story/${sid}`} className="story-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  {followedStories.map(story => (
+                    <Link key={story.id} to={`/story/${story.id}`} className="story-card" style={{ textDecoration: 'none', color: 'inherit' }}>
                       <div className="story-cover" style={{ height: '180px' }}>
-                        {storyCache[sid]?.coverImage ? (
-                          <img src={storyCache[sid].coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {story.coverImage ? (
+                          <img src={story.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : '📖'}
                       </div>
                       <div className="story-info">
-                        <h3>{storyCache[sid]?.title || 'Đang tải...'}</h3>
+                        <h3>{story.title}</h3>
+                        <div className="story-meta">
+                          <span>👁️ {story.views || 0}</span>
+                          <span>❤️ {story.followers || 0}</span>
+                        </div>
                       </div>
                     </Link>
                   ))}
