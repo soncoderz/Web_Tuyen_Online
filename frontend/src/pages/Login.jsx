@@ -39,6 +39,11 @@ export default function Login() {
             <label>Mật khẩu</label>
             <input className="form-control" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
           </div>
+          <div style={{ textAlign: 'right', marginBottom: '1rem', marginTop: '-0.5rem' }}>
+            <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: 'var(--accent)' }}>
+              Quên mật khẩu?
+            </Link>
+          </div>
           <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
             {loading ? 'Đang xử lý...' : 'Đăng nhập'}
           </button>

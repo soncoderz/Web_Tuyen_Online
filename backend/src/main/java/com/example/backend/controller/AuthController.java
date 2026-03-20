@@ -144,13 +144,12 @@ public class AuthController {
         user.setResetTokenExpiry(new Date(System.currentTimeMillis() + 3600 * 1000));
         userRepository.save(user);
 
-        boolean emailSent = emailService.sendResetPasswordEmail(user.getEmail(), token);
+        // Thử gửi email (optional)
+        emailService.sendResetPasswordEmail(user.getEmail(), token);
 
-        if (emailSent) {
-            return ResponseEntity.ok(new MessageResponse("Password reset email sent successfully."));
-        } else {
-            return ResponseEntity.internalServerError().body(new MessageResponse("Error: Could not send email."));
-        }
+        // Dev mode: luôn trả link trực tiếp để test
+        String resetLink = "http://localhost:5173/reset-password?token=" + token;
+        return ResponseEntity.ok(new MessageResponse("Đã tạo link đặt lại mật khẩu! " + resetLink));
     }
 
     @PostMapping("/reset-password")
