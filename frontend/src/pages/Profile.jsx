@@ -1,7 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getReadingHistory, getBookmarks, deleteBookmark, deleteReadingHistoryItem, getStory, getFollowedStories } from '../services/api';
+import { getReadingHistory, getBookmarks, deleteBookmark, deleteReadingHistoryItem, getStory, getFollowedStories, getChaptersByStory } from '../services/api';
+
+function timeAgo(date) {
+  const now = new Date();
+  const diff = now - new Date(date);
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return 'Vừa xong';
+  if (mins < 60) return `${mins} phút trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  if (days < 30) return `${days} ngày trước`;
+  return new Date(date).toLocaleDateString('vi-VN');
+}
 
 export default function Profile() {
   const { user } = useAuth();
@@ -11,6 +24,8 @@ export default function Profile() {
   const [history, setHistory] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [followedStories, setFollowedStories] = useState([]);
+  const [chaptersMap, setChaptersMap] = useState({});
+  const [readChapterIds, setReadChapterIds] = useState(new Set());
   const [storyCache, setStoryCache] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -30,9 +45,25 @@ export default function Profile() {
       const [hRes, bRes, fRes] = await Promise.all([getReadingHistory(), getBookmarks(), getFollowedStories()]);
       setHistory(hRes.data);
       setBookmarks(bRes.data);
-      setFollowedStories(fRes.data || []);
+      const followed = fRes.data || [];
+      setFollowedStories(followed);
 
-      // Load story titles
+      // Build set of read chapter IDs from history
+      const readIds = new Set(hRes.data.map(h => h.chapterId).filter(Boolean));
+      setReadChapterIds(readIds);
+
+      // Load chapters for each followed story (2 newest)
+      const chMap = {};
+      await Promise.all(followed.map(async (story) => {
+        try {
+          const cRes = await getChaptersByStory(story.id);
+          const sorted = (cRes.data || []).sort((a, b) => b.chapterNumber - a.chapterNumber);
+          chMap[story.id] = sorted.slice(0, 2);
+        } catch (e) { chMap[story.id] = []; }
+      }));
+      setChaptersMap(chMap);
+
+      // Load story titles for history/bookmarks
       const ids = new Set([
         ...hRes.data.map(h => h.storyId),
         ...bRes.data.map(b => b.storyId)
@@ -141,22 +172,83 @@ export default function Profile() {
             <div className="card">
               {followedStories.length > 0 ? (
                 <div className="story-grid">
-                  {followedStories.map(story => (
-                    <Link key={story.id} to={`/story/${story.id}`} className="story-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-                      <div className="story-cover" style={{ height: '180px' }}>
-                        {story.coverImage ? (
-                          <img src={story.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : '📖'}
-                      </div>
-                      <div className="story-info">
-                        <h3>{story.title}</h3>
-                        <div className="story-meta">
-                          <span>👁️ {story.views || 0}</span>
-                          <span>❤️ {story.followers || 0}</span>
+                  {followedStories.map(story => {
+                    const latestChapters = chaptersMap[story.id] || [];
+                    return (
+                      <div key={story.id} className="story-card" style={{ overflow: 'hidden' }}>
+                        <Link to={`/story/${story.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                          <div className="story-cover">
+                            {story.coverImage ? (
+                              <img src={story.coverImage} alt={story.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : '📖'}
+                          </div>
+                          <div className="story-info">
+                            <h3>{story.title}</h3>
+                            <div className="story-meta">
+                              <span style={{
+                                padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700,
+                                background: story.type === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+                                color: story.type === 'MANGA' ? 'var(--warning)' : 'var(--accent)'
+                              }}>{story.type === 'MANGA' ? '🎨 Manga' : '📝 Novel'}</span>
+                              <span>👁 {story.views || 0}</span>
+                              <span>⭐ {story.averageRating || 0}</span>
+                            </div>
+                          </div>
+                        </Link>
+                        {/* 2 chương mới nhất - luôn hiện */}
+                        <div style={{ borderTop: '1px solid var(--border)' }}>
+                          {latestChapters.length > 0 ? (
+                            latestChapters.map(ch => {
+                              const isRead = readChapterIds.has(ch.id);
+                              return (
+                                <Link
+                                  key={ch.id}
+                                  to={`/story/${story.id}/chapter/${ch.id}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '0.55rem 0.75rem',
+                                    fontSize: '0.82rem',
+                                    textDecoration: 'none',
+                                    color: isRead ? '#555' : '#fff',
+                                    borderBottom: '1px solid var(--border)',
+                                    transition: 'background 0.2s',
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-glass)'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <span style={{
+                                      color: isRead ? '#555' : 'var(--accent)',
+                                      fontSize: '0.9rem'
+                                    }}>
+                                      {isRead ? '✓' : '🔖'}
+                                    </span>
+                                    <span style={{ fontWeight: isRead ? 400 : 600 }}>
+                                      Chương {ch.chapterNumber}
+                                    </span>
+                                  </span>
+                                  <span style={{ fontSize: '0.72rem', color: isRead ? '#444' : 'var(--text-secondary)' }}>
+                                    {timeAgo(ch.createdAt)}
+                                  </span>
+                                </Link>
+                              );
+                            })
+                          ) : (
+                            <div style={{
+                              padding: '0.5rem 0.75rem',
+                              fontSize: '0.78rem',
+                              color: 'var(--text-secondary)',
+                              textAlign: 'center'
+                            }}>
+                              Chưa có chương
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="empty-state"><p>Chưa theo dõi truyện nào.</p></div>
