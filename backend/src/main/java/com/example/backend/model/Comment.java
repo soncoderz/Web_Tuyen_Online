@@ -19,6 +19,9 @@ public class Comment {
 
     private Integer chapterNumber;
 
+    // For manga pages: 0-based index of the image within the chapter (optional)
+    private Integer pageIndex;
+
     @NotBlank
     private String userId;
 
@@ -60,6 +63,9 @@ public class Comment {
 
     public Integer getChapterNumber() { return chapterNumber; }
     public void setChapterNumber(Integer chapterNumber) { this.chapterNumber = chapterNumber; }
+
+    public Integer getPageIndex() { return pageIndex; }
+    public void setPageIndex(Integer pageIndex) { this.pageIndex = pageIndex; }
 
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
