@@ -186,7 +186,7 @@ export default function ChapterReader() {
           borderRadius: '4px',
           fontSize: '0.7rem',
           fontWeight: 700,
-          background: isManga ? 'rgba(255,179,71,0.2)' : 'var(--accent-bg)',
+          background: isManga ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
           color: isManga ? 'var(--warning)' : 'var(--accent)',
         }}>{isManga ? 'Truyen Tranh' : 'Light Novel'}</span>
       </div>

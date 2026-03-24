@@ -13,6 +13,10 @@
   --accent-glow: rgba(108,99,255,0.3);
   --accent-bg: rgba(108,99,255,0.12);
   --accent-border: rgba(108,99,255,0.3);
+  --accent-soft: rgba(108,99,255,0.08);
+  --accent-soft-2: rgba(108,99,255,0.05);
+  --badge-novel-bg: rgba(108,99,255,0.18);
+  --badge-manga-bg: rgba(255,179,71,0.22);
   --success: #00d4aa;
   --warning: #ffb347;
   --danger: #ff6b6b;
@@ -438,11 +442,12 @@ select.form-control { cursor: pointer; }
 }
 .category-tag {
   padding: 0.3rem 0.8rem;
-  background: rgba(108,99,255,0.12);
+  background: var(--accent-soft);
   color: var(--accent);
   border-radius: 20px;
   font-size: 0.78rem;
   font-weight: 500;
+  border: 1px solid var(--accent-border);
 }
 
 /* ===== CHAPTER LIST ===== */

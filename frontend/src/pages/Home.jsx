@@ -35,9 +35,9 @@ export default function Home() {
     <div className="container">
       {/* Hero */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(108,99,255,0.15), rgba(167,139,250,0.1))',
+        background: `linear-gradient(135deg, var(--accent-soft), var(--accent-soft-2))`,
         borderRadius: '16px', padding: '3rem 2rem', textAlign: 'center', marginBottom: '2.5rem',
-        border: '1px solid rgba(108,99,255,0.2)'
+        border: '1px solid var(--accent-border)'
       }}>
         <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.75rem' }}>📖 Khám phá thế giới truyện</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto 1.5rem' }}>
@@ -113,7 +113,7 @@ function StoryCard({ story }) {
         <div className="story-meta">
           <span style={{
             padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700,
-            background: story.type === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+            background: story.type === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
             color: story.type === 'MANGA' ? 'var(--warning)' : 'var(--accent)'
           }}>{story.type === 'MANGA' ? '🎨 Manga' : '📝 Novel'}</span>
           <span>👁 {story.views || 0}</span>

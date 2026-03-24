@@ -9,8 +9,8 @@ const PIE_COLORS_BY_STATUS = ['#52c7ea', '#4caf50', '#f44336'];
 const PIE_COLORS_BY_ROLE = ['#ff9800', '#2196f3'];
 
 const TYPE_COLORS = {
-  MANGA: { bg: 'rgba(255,179,71,0.15)', color: '#ffb347' },
-  NOVEL: { bg: 'rgba(108,99,255,0.15)', color: '#6c63ff' },
+  MANGA: { bg: 'var(--badge-manga-bg)', color: 'var(--warning)' },
+  NOVEL: { bg: 'var(--badge-novel-bg)', color: 'var(--accent)' },
 };
 
 const STATUS_COLORS = {
