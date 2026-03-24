@@ -57,13 +57,24 @@ public class CommentController {
             chapterNumber = request.getChapterNumber();
         }
 
+        if ((request.getContent() == null || request.getContent().trim().isEmpty())
+                && (request.getGifUrl() == null || request.getGifUrl().trim().isEmpty())) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Comment content or GIF is required!"));
+        }
+
+        if (request.getGifSize() != null && request.getGifSize() > 2 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: GIF size must be <= 2MB!"));
+        }
+
         Comment comment = new Comment(
             request.getStoryId(),
             request.getChapterId(),
             chapterNumber,
             userDetails.getId(),
             userDetails.getUsername(),
-            request.getContent()
+            request.getContent(),
+            request.getGifUrl(),
+            request.getGifSize()
         );
         commentRepository.save(comment);
         return ResponseEntity.ok(comment);

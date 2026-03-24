@@ -11,6 +11,8 @@ import {
   saveReadingHistory,
 } from '../services/api';
 
+const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
+
 export default function ChapterReader() {
   const { storyId, chapterId } = useParams();
   const { user } = useAuth();
@@ -21,8 +23,15 @@ export default function ChapterReader() {
   const [chapter, setChapter] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [comments, setComments] = useState([]);
-  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(5);
   const [newComment, setNewComment] = useState('');
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearch, setGifSearch] = useState('');
+  const [gifResults, setGifResults] = useState([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [selectedGifUrl, setSelectedGifUrl] = useState(null);
+  const [selectedGifSize, setSelectedGifSize] = useState(null);
+  const [gifError, setGifError] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Reader settings
@@ -60,7 +69,7 @@ export default function ChapterReader() {
       setStory(sRes.data);
       setChapters(chsRes.data);
       setComments(cmRes.data);
-      setPage(1);
+      setVisibleCount(5);
       if (user) saveReadingHistory({ storyId, chapterId }).catch(() => {});
       try {
         const readChapters = JSON.parse(localStorage.getItem('readChapters') || '[]');
@@ -82,12 +91,72 @@ export default function ChapterReader() {
 
   const handleComment = async () => {
     if (!user) return alert('Vui long dang nhap!');
-    if (!newComment.trim()) return;
-    await createComment({ storyId, chapterId, chapterNumber: chapter?.chapterNumber, content: newComment });
+    if (!newComment.trim() && !selectedGifUrl) return;
+    if (selectedGifSize && selectedGifSize > 2 * 1024 * 1024) {
+      alert('GIF lớn hơn 2MB, vui lòng chọn GIF nhỏ hơn.');
+      return;
+    }
+    try {
+      await createComment({
+        storyId,
+        chapterId,
+        chapterNumber: chapter?.chapterNumber,
+        content: newComment,
+        gifUrl: selectedGifUrl || null,
+        gifSize: selectedGifSize || null,
+      });
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        alert('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+        return;
+      }
+      throw e;
+    }
     setNewComment('');
+    setSelectedGifUrl(null);
+    setSelectedGifSize(null);
+    setShowGifPicker(false);
     const cmRes = await getCommentsByStory(storyId);
     setComments(cmRes.data);
-    setPage(1);
+    setVisibleCount(5);
+  };
+
+  const searchGifs = async (keyword) => {
+    const q = keyword.trim();
+    // guard against too-long queries (avoids 414) and URLs pasted into the box
+    if (q.startsWith('http') || q.length > 80) {
+      setGifError('Từ khóa quá dài hoặc là một URL, hãy nhập từ khóa ngắn.');
+      setGifResults([]);
+      return;
+    }
+    setGifError('');
+    if (!q) {
+      return loadTrendingGifs();
+    }
+    setGifLoading(true);
+    try {
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=12&rating=g`);
+      const data = await res.json();
+      setGifResults(data.data || []);
+    } catch (e) {
+      console.error(e);
+      setGifError('Không tải được GIF. Thử lại sau.');
+    }
+    setGifLoading(false);
+  };
+
+  const loadTrendingGifs = async () => {
+    setGifError('');
+    setGifLoading(true);
+    try {
+      const res = await fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=12&rating=g`);
+      const data = await res.json();
+      setGifResults(data.data || []);
+    } catch (e) {
+      console.error(e);
+      setGifError('Không tải được GIF nổi bật.');
+    }
+    setGifLoading(false);
   };
 
   if (loading) return <div className="loading"><div className="spinner" />Dang tai...</div>;
@@ -268,70 +337,139 @@ export default function ChapterReader() {
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleComment()}
             />
+            <button
+              className="btn btn-outline"
+              style={{ minWidth: '64px' }}
+              onClick={() => {
+                setShowGifPicker((v) => !v);
+                if (!showGifPicker) {
+                  setGifResults([]);
+                  setGifSearch('');
+                  loadTrendingGifs();
+                }
+              }}
+            >
+              GIF
+            </button>
             <button className="btn btn-primary" onClick={handleComment}>Gui</button>
           </div>
-          {(() => {
-            const pageSize = 10;
-            const totalPages = Math.max(1, Math.ceil(comments.length / pageSize));
-            const safePage = Math.min(page, totalPages);
-            const start = (safePage - 1) * pageSize;
-            const current = comments.slice(start, start + pageSize);
-            return (
-              <>
-                {current.map((c) => (
-                  <div key={c.id} style={{ padding: '0.8rem', borderBottom: '1px solid var(--border)', marginBottom: '0.4rem' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.25rem' }}>
-                      <strong style={{ color: 'var(--accent)', fontSize: '0.9rem' }}>{c.username || 'An danh'}</strong>
-                      {c.chapterNumber && (
-                        <span style={{
-                          background: 'var(--bg-card)',
-                          color: 'var(--accent)',
-                          borderRadius: '999px',
-                          padding: '0.1rem 0.55rem',
-                          fontSize: '0.72rem',
-                          border: '1px solid var(--border)'
-                        }}>
-                          Chuong {c.chapterNumber}
-                        </span>
-                      )}
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{new Date(c.createdAt).toLocaleString('vi-VN')}</span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{c.content}</p>
-                  </div>
+          {selectedGifUrl && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+              <img src={selectedGifUrl} alt="gif" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '8px' }} />
+              <button className="btn btn-outline" onClick={() => setSelectedGifUrl(null)}>Xoa GIF</button>
+            </div>
+          )}
+          {showGifPicker && (
+            <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', background: 'var(--bg-card)' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <input
+                  className="form-control"
+                  placeholder="Tim GIF..."
+                  value={gifSearch}
+                  onChange={(e) => {
+                    setGifSearch(e.target.value);
+                    searchGifs(e.target.value);
+                  }}
+                />
+                <button className="btn btn-outline" onClick={() => searchGifs(gifSearch)}>Tim</button>
+              </div>
+              {gifError && <p style={{ color: 'var(--warning)', margin: '0 0 0.4rem 0' }}>{gifError}</p>}
+              {gifLoading && <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Dang tai GIF...</p>}
+              {!gifLoading && !gifError && (
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                  {['funny', 'meme', 'wow', 'sad', 'celebrate', 'cute'].map((tag) => (
+                    <button
+                      key={tag}
+                      className="btn btn-outline"
+                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                      onClick={() => { setGifSearch(tag); searchGifs(tag); }}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.4rem', maxHeight: '260px', overflowY: 'auto' }}>
+                {gifResults.map((g) => (
+                  <img
+                    key={g.id}
+                    src={g.images?.downsized?.url}
+                    alt={g.title}
+                    loading="lazy"
+                    style={{ width: '100%', height: '90px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', border: selectedGifUrl === g.images?.downsized?.url ? '2px solid var(--accent)' : '1px solid var(--border)' }}
+                    onClick={() => {
+                      const size = parseInt(g.images?.downsized?.size || '0', 10);
+                      if (size > 2 * 1024 * 1024) {
+                        alert('GIF lớn hơn 2MB, chọn GIF khác.');
+                        return;
+                      }
+                      setSelectedGifUrl(g.images?.downsized?.url);
+                      setSelectedGifSize(size || null);
+                      setShowGifPicker(false);
+                    }}
+                    onError={(e) => {
+                      const fallback = g.images?.downsized?.url;
+                      if (fallback && e.target.src !== fallback) e.target.src = fallback;
+                    }}
+                  />
                 ))}
-                {comments.length > pageSize && (
-                  <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                    <button
-                      className="btn btn-outline"
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                      disabled={safePage === 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    >
-                      ←
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                      <button
-                        key={p}
-                        className={`btn ${p === safePage ? 'btn-primary' : 'btn-outline'}`}
-                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                        onClick={() => setPage(p)}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      className="btn btn-outline"
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                      disabled={safePage === totalPages}
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    >
-                      →
-                    </button>
-                  </div>
+                {!gifLoading && gifResults.length === 0 && gifSearch && <p style={{ color: 'var(--text-secondary)' }}>Khong tim thay GIF.</p>}
+              </div>
+            </div>
+          )}
+          {comments.slice(0, visibleCount).map((c) => (
+            <div key={c.id} style={{ padding: '0.8rem', borderBottom: '1px solid var(--border)', marginBottom: '0.4rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.25rem' }}>
+                <strong style={{ color: 'var(--accent)', fontSize: '0.9rem' }}>{c.username || 'An danh'}</strong>
+                {c.chapterNumber && (
+                  <span style={{
+                    background: 'var(--bg-card)',
+                    color: 'var(--accent)',
+                    borderRadius: '999px',
+                    padding: '0.1rem 0.55rem',
+                    fontSize: '0.72rem',
+                    border: '1px solid var(--border)'
+                  }}>
+                    Chuong {c.chapterNumber}
+                  </span>
                 )}
-              </>
-            );
-          })()}
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{new Date(c.createdAt).toLocaleString('vi-VN')}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{c.content}</p>
+              {c.gifUrl && (!c.gifSize || c.gifSize <= 2 * 1024 * 1024) && (
+                <img
+                  src={c.gifUrl}
+                  alt="gif"
+                  loading="lazy"
+                  style={{
+                    marginTop: '0.35rem',
+                    width: '180px',
+                    height: '120px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    objectFit: 'cover'
+                  }}
+                  onError={(e) => {
+                    if (c.gifUrl && e.target.src !== c.gifUrl) e.target.src = c.gifUrl;
+                  }}
+                />
+              )}
+              {c.gifUrl && c.gifSize && c.gifSize > 2 * 1024 * 1024 && (
+                <p style={{ marginTop: '0.3rem', fontSize: '0.8rem', color: 'var(--warning)' }}>
+                  GIF &gt; 2MB không hiển thị.
+                </p>
+              )}
+            </div>
+          ))}
+          {comments.length > visibleCount && (
+            <button
+              className="btn btn-outline"
+              style={{ width: '100%', marginTop: '0.5rem' }}
+              onClick={() => setVisibleCount((v) => Math.min(comments.length, v + 5))}
+            >
+              Xem thêm ({comments.length - visibleCount})
+            </button>
+          )}
           {comments.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>Chua co binh luan nao cho truyen nay.</p>}
         </div>
       </div>

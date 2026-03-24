@@ -10,7 +10,9 @@ public class CommentRequest {
 
     private Integer chapterNumber;
 
-    @NotBlank
+    private String gifUrl;
+    private Long gifSize;
+
     private String content;
 
     public String getStoryId() { return storyId; }
@@ -21,6 +23,12 @@ public class CommentRequest {
 
     public Integer getChapterNumber() { return chapterNumber; }
     public void setChapterNumber(Integer chapterNumber) { this.chapterNumber = chapterNumber; }
+
+    public String getGifUrl() { return gifUrl; }
+    public void setGifUrl(String gifUrl) { this.gifUrl = gifUrl; }
+
+    public Long getGifSize() { return gifSize; }
+    public void setGifSize(Long gifSize) { this.gifSize = gifSize; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

@@ -24,20 +24,27 @@ public class Comment {
 
     private String username;
 
-    @NotBlank
+    // text is optional when a GIF is attached
     private String content;
+
+    private String gifUrl;
+
+    // size in bytes of the GIF (if any)
+    private Long gifSize;
 
     private Date createdAt = new Date();
 
     public Comment() {}
 
-    public Comment(String storyId, String chapterId, Integer chapterNumber, String userId, String username, String content) {
+    public Comment(String storyId, String chapterId, Integer chapterNumber, String userId, String username, String content, String gifUrl, Long gifSize) {
         this.storyId = storyId;
         this.chapterId = chapterId;
         this.chapterNumber = chapterNumber;
         this.userId = userId;
         this.username = username;
         this.content = content;
+        this.gifUrl = gifUrl;
+        this.gifSize = gifSize;
     }
 
     public String getId() { return id; }
@@ -60,6 +67,12 @@ public class Comment {
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+
+    public String getGifUrl() { return gifUrl; }
+    public void setGifUrl(String gifUrl) { this.gifUrl = gifUrl; }
+
+    public Long getGifSize() { return gifSize; }
+    public void setGifSize(Long gifSize) { this.gifSize = gifSize; }
 
     public Date getCreatedAt() { return createdAt; }
     public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
