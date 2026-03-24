@@ -20,5 +20,9 @@ public interface UserRepository extends MongoRepository<User, String> {
 
     Optional<User> findByResetToken(String resetToken);
 
+
     List<User> findByFollowedStoryIdsContaining(String storyId);
+
+    long countByCreatedAtGreaterThan(java.util.Date date);
+
 }
