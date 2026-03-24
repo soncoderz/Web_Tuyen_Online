@@ -274,14 +274,14 @@ export default function ChapterReader() {
       <div style={{ maxWidth: isManga ? '900px' : '750px', margin: '0 auto', padding: '1rem' }}>
         {isManga ? (
           /* === MANGA READER: Image Pages === */
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}>
             {chapter.pages && chapter.pages.length > 0 ? (
               chapter.pages.map((page, idx) => (
                 <img
                   key={idx}
                   src={page}
                   alt={`Trang ${idx + 1}`}
-                  style={{ width: '100%', maxWidth: '900px', display: 'block', borderRadius: '2px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                  style={{ width: '100%', maxWidth: '900px', display: 'block', borderRadius: '2px', background: 'var(--bg-card)' }}
                   loading="lazy"
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
