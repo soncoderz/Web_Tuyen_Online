@@ -318,6 +318,35 @@ a:hover { color: var(--accent-hover); }
   align-items: center;
   gap: 0.25rem;
 }
+.story-card-chapters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+.story-card-chapter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.story-card-chapter.unread { background: var(--accent-soft-2); }
+.story-card-chapter.read { background: var(--bg-card); opacity: 0.7; }
+.story-card-chapter:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.ch-name { font-weight: 700; color: var(--text-primary); }
+.ch-time { font-size: 0.7rem; }
 .status-badge {
   display: inline-block;
   padding: 0.2rem 0.6rem;
