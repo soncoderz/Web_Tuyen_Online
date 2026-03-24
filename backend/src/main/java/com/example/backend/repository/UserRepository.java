@@ -1,5 +1,6 @@
 package com.example.backend.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -18,4 +19,11 @@ public interface UserRepository extends MongoRepository<User, String> {
     Boolean existsByEmail(String email);
 
     Optional<User> findByResetToken(String resetToken);
+
+    Optional<User> findByGoogleId(String googleId);
+
+    List<User> findByFollowedStoryIdsContaining(String storyId);
+
+    long countByCreatedAtGreaterThan(java.util.Date date);
+
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Header() {
   const { user, logout, isAdmin } = useAuth();
@@ -9,11 +10,14 @@ export default function Header() {
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
+  const [showTheme, setShowTheme] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef();
   const notifRef = useRef();
+  const themeRef = useRef();
+  const { themeKey, setTheme, themes } = useTheme();
 
   useEffect(() => {
     if (user) {
@@ -26,6 +30,7 @@ export default function Header() {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
       if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
+      if (themeRef.current && !themeRef.current.contains(e.target)) setShowTheme(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -72,6 +77,39 @@ export default function Header() {
         </nav>
 
         <div className="nav-actions">
+          <div ref={themeRef} className="theme-switcher">
+            <button className="btn-icon" title="Doi mau giao dien" onClick={() => setShowTheme(!showTheme)}>
+              🎨
+            </button>
+            {showTheme && (
+              <div className="theme-dropdown">
+                <div className="theme-title">Chon giao dien</div>
+                {Object.entries(themes).map(([key, preset]) => (
+                  <button
+                    key={key}
+                    className={`theme-option ${themeKey === key ? 'active' : ''}`}
+                    onClick={() => {
+                      setTheme(key);
+                      setShowTheme(false);
+                    }}
+                    type="button"
+                  >
+                    <div className="theme-swatches">
+                      {preset.colors.map((c, idx) => (
+                        <span key={idx} style={{ background: c }} />
+                      ))}
+                    </div>
+                    <div className="theme-info">
+                      <strong>{preset.name}</strong>
+                      <small>{preset.description}</small>
+                    </div>
+                    {themeKey === key && <span className="theme-check">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {user ? (
             <>
               <div ref={notifRef} style={{ position: 'relative' }}>
@@ -102,7 +140,11 @@ export default function Header() {
 
               <div ref={menuRef} className="user-menu">
                 <button className="user-menu-btn" onClick={() => setShowMenu(!showMenu)}>
-                  <span className="user-avatar">{user.username?.[0]?.toUpperCase()}</span>
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.username} className="user-avatar-img" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="user-avatar">{user.username?.[0]?.toUpperCase()}</span>
+                  )}
                   {user.username}
                 </button>
                 {showMenu && (

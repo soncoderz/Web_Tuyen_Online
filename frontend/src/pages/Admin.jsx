@@ -9,9 +9,10 @@ import {
   updateReportStatus, uploadImage, uploadMangaPages
 } from '../services/api';
 import api from '../services/api';
+import Statistics from './Statistics';
 
 export default function Admin() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState('dashboard');
   const [stats, setStats] = useState({});
@@ -52,9 +53,12 @@ export default function Admin() {
   const mangaInputRef = useRef(null);
 
   useEffect(() => {
+    // Đợi AuthContext load xong trước khi kiểm tra user
+    if (authLoading) return;
+    
     if (!user || !isAdmin()) { navigate('/'); return; }
     loadData();
-  }, [user]);
+  }, [user, authLoading]);
 
   const loadData = async () => {
     setLoading(true);
@@ -189,9 +193,10 @@ export default function Admin() {
     <div className="container">
       <h1 className="page-title">⚙️ Quản trị hệ thống</h1>
       <div className="tabs">
-        {['dashboard', 'stories', 'categories', 'authors', 'chapters', 'reports'].map(t => (
+        {['dashboard', 'statistics', 'stories', 'categories', 'authors', 'chapters', 'reports'].map(t => (
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
             {t === 'dashboard' && '📊 Dashboard'}
+            {t === 'statistics' && '📈 Thống kê'}
             {t === 'stories' && `📚 Truyện (${stories.length})`}
             {t === 'categories' && `📁 Thể loại (${categories.length})`}
             {t === 'authors' && `✍️ Tác giả (${authors.length})`}
@@ -211,6 +216,8 @@ export default function Admin() {
         </div>
       )}
 
+      {tab === 'statistics' && <Statistics embedded />}
+
       {tab === 'stories' && (
         <div>
           <button className="btn btn-primary" onClick={() => { setShowStoryForm(true); setEditStoryId(null); setCoverPreview('');
@@ -225,7 +232,7 @@ export default function Admin() {
                   {s.title}
                 </td>
                 <td><span style={{ padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700,
-                  background: s.type === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+                  background: s.type === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
                   color: s.type === 'MANGA' ? '#ffb347' : '#6c63ff'
                 }}>{s.type === 'MANGA' ? '🎨 Manga' : '📝 Novel'}</span></td>
                 <td><span className={`status-badge status-${s.status}`}>{s.status}</span></td>
@@ -353,8 +360,8 @@ export default function Admin() {
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                 <div style={{
                   width: '120px', height: '160px', borderRadius: '8px', overflow: 'hidden',
-                  border: '2px dashed rgba(108,99,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', background: 'rgba(108,99,255,0.05)', flexShrink: 0
+                  border: '2px dashed var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', background: 'var(--accent-soft-2)', flexShrink: 0
                 }} onClick={() => coverInputRef.current?.click()}>
                   {(coverPreview || storyForm.coverImage) ? (
                     <img src={coverPreview || storyForm.coverImage} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -459,7 +466,7 @@ export default function Admin() {
             <h2>{editChapterId ? 'Sửa chương' : 'Thêm chương mới'}
               <span style={{
                 marginLeft: '0.5rem', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem',
-                background: getSelectedStoryType() === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+                background: getSelectedStoryType() === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
                 color: getSelectedStoryType() === 'MANGA' ? '#ffb347' : '#6c63ff'
               }}>{getSelectedStoryType() === 'MANGA' ? '🎨 Manga' : '📝 Novel'}</span>
             </h2>
@@ -476,8 +483,8 @@ export default function Admin() {
 
                 {/* Upload area */}
                 <div style={{
-                  border: '2px dashed rgba(255,179,71,0.3)', borderRadius: '12px', padding: '1.5rem',
-                  textAlign: 'center', cursor: 'pointer', background: 'rgba(255,179,71,0.05)', marginBottom: '1rem'
+                  border: '2px dashed var(--badge-manga-bg)', borderRadius: '12px', padding: '1.5rem',
+                  textAlign: 'center', cursor: 'pointer', background: 'var(--accent-soft-2)', marginBottom: '1rem'
                 }} onClick={() => mangaInputRef.current?.click()}>
                   <input ref={mangaInputRef} type="file" accept="image/*" multiple onChange={handleMangaFilesSelect} style={{ display: 'none' }} />
                   <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📁</div>

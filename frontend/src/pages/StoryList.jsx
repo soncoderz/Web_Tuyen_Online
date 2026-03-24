@@ -11,16 +11,22 @@ export default function StoryList() {
   const [status, setStatus] = useState('');
   const [type, setType] = useState('');
   const [searchParams] = useSearchParams();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     getCategories().then(r => setCategories(r.data)).catch(() => {});
+    
+    // Initialize from URL params ONLY on mount
     const cat = searchParams.get('category');
     const t = searchParams.get('type');
     if (cat) setCategoryId(cat);
     if (t) setType(t);
-  }, [searchParams]);
+    setReady(true);
+  }, []); // Run once on mount
 
   useEffect(() => {
+    if (!ready) return; // Wait until URL params are parsed
+
     setLoading(true);
     const params = {};
     if (keyword) params.keyword = keyword;
@@ -33,7 +39,7 @@ export default function StoryList() {
       .then(r => setStories(r.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [keyword, categoryId, status, type]);
+  }, [keyword, categoryId, status, type, ready]);
 
   return (
     <div className="container">
@@ -76,7 +82,7 @@ export default function StoryList() {
                 <div className="story-meta">
                   <span style={{
                     padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700,
-                    background: story.type === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+                    background: story.type === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
                     color: story.type === 'MANGA' ? 'var(--warning)' : 'var(--accent)'
                   }}>{story.type === 'MANGA' ? '🎨 Manga' : '📝 Novel'}</span>
                   <span>👁 {story.views || 0}</span>
