@@ -10,7 +10,9 @@ function getReadChapters() {
 }
 
 export default function Home() {
-  const [stories, setStories] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [newReleases, setNewReleases] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [categories, setCategories] = useState([]);
   const [chaptersMap, setChaptersMap] = useState({}); // storyId -> [chapter, ...]
   const [loading, setLoading] = useState(true);
@@ -43,10 +45,6 @@ export default function Home() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
-  const manga = stories.filter(s => s.type === 'MANGA');
-  const novels = stories.filter(s => s.type === 'NOVEL');
-  const trending = [...stories].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 8);
 
   if (loading) return <div className="loading"><div className="spinner" />Đang tải...</div>;
 
@@ -82,37 +80,37 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hot */}
-      {trending.length > 0 && (
+      {/* Recommendations */}
+      {recommendations.length > 0 && (
         <div style={{ marginBottom: '2.5rem' }}>
           <h2 className="section-title">🔥 Truyện hot nhất</h2>
           <div className="story-grid">{trending.map(s => <StoryCard key={s.id} story={s} chapters={chaptersMap[s.id] || []} />)}</div>
         </div>
       )}
 
-      {/* Manga */}
-      {manga.length > 0 && (
+      {/* Hot */}
+      {trending.length > 0 && (
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 className="section-title">🎨 Truyện Tranh (Manga)</h2>
-            <Link to="/stories?type=MANGA" style={{ fontSize: '0.85rem' }}>Xem tất cả →</Link>
+            <h2 className="section-title">🔥 Truyện hot nhất</h2>
+            <Link to="/stories?sort=views" style={{ fontSize: '0.85rem' }}>Xem tất cả →</Link>
           </div>
           <div className="story-grid">{manga.slice(0, 8).map(s => <StoryCard key={s.id} story={s} chapters={chaptersMap[s.id] || []} />)}</div>
         </div>
       )}
 
-      {/* Novel */}
-      {novels.length > 0 && (
+      {/* New Releases */}
+      {newReleases.length > 0 && (
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 className="section-title">📝 Light Novel / Tiểu Thuyết</h2>
-            <Link to="/stories?type=NOVEL" style={{ fontSize: '0.85rem' }}>Xem tất cả →</Link>
+            <h2 className="section-title">🆕 Truyện mới cập nhật</h2>
+            <Link to="/stories?sort=updatedAt" style={{ fontSize: '0.85rem' }}>Xem tất cả →</Link>
           </div>
           <div className="story-grid">{novels.slice(0, 8).map(s => <StoryCard key={s.id} story={s} chapters={chaptersMap[s.id] || []} />)}</div>
         </div>
       )}
 
-      {stories.length === 0 && (
+      {trending.length === 0 && newReleases.length === 0 && (
         <div className="empty-state"><div className="icon">📚</div><p>Chưa có truyện nào.</p></div>
       )}
     </div>
