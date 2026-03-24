@@ -101,7 +101,7 @@ export default function StoryDetail() {
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
             <span style={{
               padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700,
-              background: story.type === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+              background: story.type === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
               color: story.type === 'MANGA' ? 'var(--warning)' : 'var(--accent)'
             }}>{story.type === 'MANGA' ? '🎨 Truyện Tranh' : '📝 Light Novel'}</span>
             <span className={`status-badge status-${story.status}`}>{story.status === 'COMPLETED' ? 'Hoàn thành' : story.status === 'ONGOING' ? 'Đang ra' : 'Ngừng'}</span>
@@ -148,7 +148,7 @@ export default function StoryDetail() {
                   <div className="story-meta">
                     <span style={{
                       padding: '0.1rem 0.3rem', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700,
-                      background: rs.type === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+                      background: rs.type === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
                       color: rs.type === 'MANGA' ? 'var(--warning)' : 'var(--accent)'
                     }}>{rs.type === 'MANGA' ? '🎨 Manga' : '📝 Novel'}</span>
                   </div>

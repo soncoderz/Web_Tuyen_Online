@@ -76,7 +76,7 @@ export default function StoryList() {
                 <div className="story-meta">
                   <span style={{
                     padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700,
-                    background: story.type === 'MANGA' ? 'rgba(255,179,71,0.2)' : 'rgba(108,99,255,0.2)',
+                    background: story.type === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
                     color: story.type === 'MANGA' ? 'var(--warning)' : 'var(--accent)'
                   }}>{story.type === 'MANGA' ? '🎨 Manga' : '📝 Novel'}</span>
                   <span>👁 {story.views || 0}</span>
