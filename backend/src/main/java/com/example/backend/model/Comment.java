@@ -36,7 +36,9 @@ public class Comment {
 
     public Comment() {}
 
-    public Comment(String storyId, String chapterId, Integer chapterNumber, String userId, String username, String content, String gifUrl, Long gifSize) {
+    public Comment(String storyId, String chapterId, Integer chapterNumber,
+                   String userId, String username, String content,
+                   String gifUrl, Long gifSize) {
         this.storyId = storyId;
         this.chapterId = chapterId;
         this.chapterNumber = chapterNumber;

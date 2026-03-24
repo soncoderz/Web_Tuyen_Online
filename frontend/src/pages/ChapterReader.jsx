@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -32,7 +32,9 @@ export default function ChapterReader() {
   const [selectedGifUrl, setSelectedGifUrl] = useState(null);
   const [selectedGifSize, setSelectedGifSize] = useState(null);
   const [gifError, setGifError] = useState('');
+  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const searchTimer = useRef(null);
 
   // Reader settings
   const [fontSize, setFontSize] = useState(18);
@@ -97,6 +99,7 @@ export default function ChapterReader() {
       return;
     }
     try {
+      setSending(true);
       await createComment({
         storyId,
         chapterId,
@@ -108,8 +111,10 @@ export default function ChapterReader() {
     } catch (e) {
       if (e?.response?.status === 401) {
         alert('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+        setSending(false);
         return;
       }
+      setSending(false);
       throw e;
     }
     setNewComment('');
@@ -119,20 +124,18 @@ export default function ChapterReader() {
     const cmRes = await getCommentsByStory(storyId);
     setComments(cmRes.data);
     setVisibleCount(5);
+    setSending(false);
   };
 
   const searchGifs = async (keyword) => {
     const q = keyword.trim();
-    // guard against too-long queries (avoids 414) and URLs pasted into the box
     if (q.startsWith('http') || q.length > 80) {
       setGifError('Từ khóa quá dài hoặc là một URL, hãy nhập từ khóa ngắn.');
       setGifResults([]);
       return;
     }
     setGifError('');
-    if (!q) {
-      return loadTrendingGifs();
-    }
+    if (!q) return loadTrendingGifs();
     setGifLoading(true);
     try {
       const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=12&rating=g`);
@@ -231,8 +234,8 @@ export default function ChapterReader() {
           fontSize: '0.85rem',
           color: 'var(--text-secondary)',
         }}>
-          <label>Co chu: <input type="range" min="14" max="28" value={fontSize} onChange={(e) => setFontSize(+e.target.value)} /> {fontSize}px</label>
-          <label>Dan dong: <input type="range" min="1.2" max="3" step="0.1" value={lineHeight} onChange={(e) => setLineHeight(+e.target.value)} /> {lineHeight}</label>
+          <label>Cỡ chữ: <input type="range" min="14" max="28" value={fontSize} onChange={(e) => setFontSize(+e.target.value)} /> {fontSize}px</label>
+          <label>Dãn dòng: <input type="range" min="1.2" max="3" step="0.1" value={lineHeight} onChange={(e) => setLineHeight(+e.target.value)} /> {lineHeight}</label>
           <label>Font:
             <select
               value={fontFamily}
@@ -252,8 +255,8 @@ export default function ChapterReader() {
               <option value="monospace">Monospace</option>
             </select>
           </label>
-          <label>Nen: <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} /></label>
-          <label>Chu: <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} /></label>
+          <label>Nền: <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} /></label>
+          <label>Chữ: <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} /></label>
         </div>
       )}
 
@@ -273,7 +276,6 @@ export default function ChapterReader() {
       {/* Content */}
       <div style={{ maxWidth: isManga ? '900px' : '750px', margin: '0 auto', padding: '1rem' }}>
         {isManga ? (
-          /* === MANGA READER: Image Pages === */
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}>
             {chapter.pages && chapter.pages.length > 0 ? (
               chapter.pages.map((page, idx) => (
@@ -294,7 +296,6 @@ export default function ChapterReader() {
             )}
           </div>
         ) : (
-          /* === NOVEL READER: Text Content === */
           <div style={{
             fontSize: `${fontSize}px`,
             fontFamily,
@@ -351,12 +352,12 @@ export default function ChapterReader() {
             >
               GIF
             </button>
-            <button className="btn btn-primary" onClick={handleComment}>Gui</button>
+            <button className="btn btn-primary" onClick={handleComment} disabled={sending}>Gui</button>
           </div>
           {selectedGifUrl && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
               <img src={selectedGifUrl} alt="gif" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '8px' }} />
-              <button className="btn btn-outline" onClick={() => setSelectedGifUrl(null)}>Xoa GIF</button>
+              <button className="btn btn-outline" onClick={() => { setSelectedGifUrl(null); setSelectedGifSize(null); }}>Xoa GIF</button>
             </div>
           )}
           {showGifPicker && (
@@ -367,8 +368,10 @@ export default function ChapterReader() {
                   placeholder="Tim GIF..."
                   value={gifSearch}
                   onChange={(e) => {
-                    setGifSearch(e.target.value);
-                    searchGifs(e.target.value);
+                    const value = e.target.value;
+                    if (searchTimer.current) clearTimeout(searchTimer.current);
+                    searchTimer.current = setTimeout(() => searchGifs(value), 350);
+                    setGifSearch(value);
                   }}
                 />
                 <button className="btn btn-outline" onClick={() => searchGifs(gifSearch)}>Tim</button>
@@ -391,27 +394,39 @@ export default function ChapterReader() {
               )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.4rem', maxHeight: '260px', overflowY: 'auto' }}>
                 {gifResults.map((g) => (
-                  <img
-                    key={g.id}
-                    src={g.images?.downsized?.url}
-                    alt={g.title}
-                    loading="lazy"
-                    style={{ width: '100%', height: '90px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', border: selectedGifUrl === g.images?.downsized?.url ? '2px solid var(--accent)' : '1px solid var(--border)' }}
-                    onClick={() => {
-                      const size = parseInt(g.images?.downsized?.size || '0', 10);
-                      if (size > 2 * 1024 * 1024) {
-                        alert('GIF lớn hơn 2MB, chọn GIF khác.');
-                        return;
-                      }
-                      setSelectedGifUrl(g.images?.downsized?.url);
-                      setSelectedGifSize(size || null);
-                      setShowGifPicker(false);
-                    }}
-                    onError={(e) => {
-                      const fallback = g.images?.downsized?.url;
-                      if (fallback && e.target.src !== fallback) e.target.src = fallback;
-                    }}
-                  />
+                  <div key={g.id} style={{ position: 'relative', width: '100%', height: '90px' }}>
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: 'var(--bg-card)', border: '1px solid var(--border)',
+                      borderRadius: '8px', opacity: 0.4
+                    }} />
+                    <img
+                      src={g.images?.downsized?.url}
+                      alt={g.title}
+                      loading="lazy"
+                      style={{ width: '100%', height: '90px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', border: selectedGifUrl === g.images?.downsized?.url ? '2px solid var(--accent)' : '1px solid var(--border)' }}
+                      onLoad={(e) => { e.currentTarget.previousSibling.style.display = 'none'; }}
+                      onClick={() => {
+                        const size = parseInt(g.images?.downsized?.size || '0', 10);
+                        if (size > 2 * 1024 * 1024) {
+                          alert('GIF lớn hơn 2MB, chọn GIF khác.');
+                          return;
+                        }
+                        const probe = new Image();
+                        probe.onload = () => {
+                          setSelectedGifUrl(g.images?.downsized?.url);
+                          setSelectedGifSize(size || null);
+                          setShowGifPicker(false);
+                        };
+                        probe.onerror = () => alert('Không tải được GIF này, thử cái khác.');
+                        probe.src = g.images?.downsized?.url;
+                      }}
+                      onError={(e) => {
+                        const fallback = g.images?.downsized?.url;
+                        if (fallback && e.target.src !== fallback) e.target.src = fallback;
+                      }}
+                    />
+                  </div>
                 ))}
                 {!gifLoading && gifResults.length === 0 && gifSearch && <p style={{ color: 'var(--text-secondary)' }}>Khong tim thay GIF.</p>}
               </div>

@@ -13,6 +13,7 @@ public class CommentRequest {
     private String gifUrl;
     private Long gifSize;
 
+    // text optional (đã cho phép comment chỉ GIF)
     private String content;
 
     public String getStoryId() { return storyId; }

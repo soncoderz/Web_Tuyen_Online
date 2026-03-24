@@ -37,7 +37,12 @@ public class CommentController {
 
     @GetMapping("/chapter/{chapterId}")
     public ResponseEntity<List<Comment>> getCommentsByChapter(@PathVariable String chapterId) {
-        return ResponseEntity.ok(commentRepository.findByChapterIdOrderByCreatedAtDesc(chapterId));
+        return ResponseEntity.ok(commentRepository.findByChapterIdAndPageIndexIsNullOrderByCreatedAtDesc(chapterId));
+    }
+
+    @GetMapping("/chapter/{chapterId}/page/{pageIndex}")
+    public ResponseEntity<List<Comment>> getCommentsByPage(@PathVariable String chapterId, @PathVariable int pageIndex) {
+        return ResponseEntity.ok(commentRepository.findByChapterIdAndPageIndexOrderByCreatedAtDesc(chapterId, pageIndex));
     }
 
     @PostMapping
