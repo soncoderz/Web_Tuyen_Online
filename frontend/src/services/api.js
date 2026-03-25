@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080/api";
+const API_URL = (
+  import.meta.env.VITE_API_URL?.trim() ||
+  (typeof window !== "undefined" ? `${window.location.origin}/api` : "/api")
+).replace(/\/+$/, "");
 export const API_HOST = API_URL.replace(/\/api$/, "");
 
 const api = axios.create({
@@ -99,8 +102,8 @@ export const getCommentsByStory = (storyId) =>
   api.get(`/comments/story/${storyId}`);
 export const getCommentsByChapter = (chapterId) =>
   api.get(`/comments/chapter/${chapterId}`);
-export const getCommentsByPage = (chapterId, chapterNumber) =>
-  api.get(`/comments/chapter/${chapterId}/page/${chapterNumber}`);
+export const getCommentsByPage = (chapterId, pageIndex) =>
+  api.get(`/comments/chapter/${chapterId}/page/${pageIndex}`);
 export const createComment = (data) => api.post("/comments", data);
 export const deleteComment = (id) => api.delete(`/comments/${id}`);
 
