@@ -54,6 +54,8 @@ export const deleteChapter = (id) => api.delete(`/chapters/${id}`);
 // Comments
 export const getCommentsByStory = (storyId) => api.get(`/comments/story/${storyId}`);
 export const getCommentsByChapter = (chapterId) => api.get(`/comments/chapter/${chapterId}`);
+export const getCommentsByPage = (chapterId, pageNumber) => api.get(`/comments/chapter/${chapterId}/page/${pageNumber}`);
+export const getPageCommentCount = (chapterId, pageNumber) => api.get(`/comments/chapter/${chapterId}/page/${pageNumber}/count`);
 export const createComment = (data) => api.post('/comments', data);
 export const deleteComment = (id) => api.delete(`/comments/${id}`);
 
@@ -64,6 +66,7 @@ export const getUserRating = (storyId) => api.get(`/ratings/story/${storyId}/use
 
 // Bookmarks
 export const getBookmarks = () => api.get('/bookmarks');
+export const getBookmarksByChapter = (chapterId) => api.get(`/bookmarks/chapter/${chapterId}`);
 export const addBookmark = (data) => api.post('/bookmarks', data);
 export const deleteBookmark = (id) => api.delete(`/bookmarks/${id}`);
 
@@ -99,5 +102,3 @@ export const uploadMangaPages = (files) => {
   files.forEach(f => fd.append('files', f));
   return api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
 };
-
-export default api;

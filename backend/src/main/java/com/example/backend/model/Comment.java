@@ -27,7 +27,8 @@ public class Comment {
 
     private Date createdAt = new Date();
 
-    public Comment() {}
+    public Comment() {
+    }
 
     public Comment(String storyId, String chapterId, String userId, String username, String content) {
         this.storyId = storyId;
@@ -37,24 +38,59 @@ public class Comment {
         this.content = content;
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getId() {
+        return id;
+    }
 
-    public String getStoryId() { return storyId; }
-    public void setStoryId(String storyId) { this.storyId = storyId; }
+    public void setId(String id) {
+        this.id = id;
+    }
 
-    public String getChapterId() { return chapterId; }
-    public void setChapterId(String chapterId) { this.chapterId = chapterId; }
+    public String getStoryId() {
+        return storyId;
+    }
 
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public void setStoryId(String storyId) {
+        this.storyId = storyId;
+    }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    public String getChapterId() {
+        return chapterId;
+    }
 
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
+    public void setChapterId(String chapterId) {
+        this.chapterId = chapterId;
+    }
 
-    public Date getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
 }

@@ -21,8 +21,8 @@ export default function Header() {
 
   useEffect(() => {
     if (user) {
-      getUnreadCount().then(r => setUnreadCount(r.data.count)).catch(() => {});
-      getNotifications().then(r => setNotifications(r.data)).catch(() => {});
+      getUnreadCount().then(r => setUnreadCount(r.data.count)).catch(() => { });
+      getNotifications().then(r => setNotifications(r.data)).catch(() => { });
     }
   }, [user, location]);
 

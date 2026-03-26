@@ -11,12 +11,27 @@ public class CommentRequest {
     @NotBlank
     private String content;
 
-    public String getStoryId() { return storyId; }
-    public void setStoryId(String storyId) { this.storyId = storyId; }
+    public String getStoryId() {
+        return storyId;
+    }
 
-    public String getChapterId() { return chapterId; }
-    public void setChapterId(String chapterId) { this.chapterId = chapterId; }
+    public void setStoryId(String storyId) {
+        this.storyId = storyId;
+    }
 
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
+    public String getChapterId() {
+        return chapterId;
+    }
+
+    public void setChapterId(String chapterId) {
+        this.chapterId = chapterId;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
 }

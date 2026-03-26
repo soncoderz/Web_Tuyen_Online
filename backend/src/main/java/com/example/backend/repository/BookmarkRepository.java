@@ -8,6 +8,8 @@ import com.example.backend.model.Bookmark;
 
 public interface BookmarkRepository extends MongoRepository<Bookmark, String> {
     List<Bookmark> findByUserIdOrderByCreatedAtDesc(String userId);
+
     List<Bookmark> findByUserIdAndStoryId(String userId, String storyId);
+
     void deleteByUserIdAndStoryIdAndChapterId(String userId, String storyId, String chapterId);
 }

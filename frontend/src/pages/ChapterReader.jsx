@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -9,10 +9,14 @@ import {
   getCommentsByChapter,
   getStory,
   saveReadingHistory,
+  addBookmark,
+  deleteBookmark,
+  getBookmarksByChapter,
 } from '../services/api';
 
 export default function ChapterReader() {
   const { storyId, chapterId } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { themeKey } = useTheme();
@@ -24,6 +28,10 @@ export default function ChapterReader() {
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Bookmark state
+  const [chapterBookmarks, setChapterBookmarks] = useState([]);
+  const [bookmarkAnimating, setBookmarkAnimating] = useState(null);
+
   // Reader settings
   const [fontSize, setFontSize] = useState(18);
   const [fontFamily, setFontFamily] = useState('Georgia');
@@ -31,6 +39,10 @@ export default function ChapterReader() {
   const [textColor, setTextColor] = useState('');
   const [lineHeight, setLineHeight] = useState(1.8);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Refs for scrolling to bookmark
+  const pageRefs = useRef([]);
+  const paragraphRefs = useRef([]);
 
   useEffect(() => {
     loadChapter();
@@ -46,6 +58,34 @@ export default function ChapterReader() {
     setTextColor(getVar('--text-primary', '#0f172a'));
   }, [themeKey]);
 
+  // Scroll to bookmarked position from URL param
+  useEffect(() => {
+    if (!loading && chapter) {
+      const scrollTo = searchParams.get('page');
+      if (scrollTo !== null) {
+        const idx = parseInt(scrollTo, 10);
+        setTimeout(() => scrollToIndex(idx), 300);
+      }
+    }
+  }, [loading, chapter, searchParams]);
+
+  const scrollToIndex = (idx) => {
+    const isManga = story?.type === 'MANGA';
+    const refs = isManga ? pageRefs.current : paragraphRefs.current;
+    if (refs[idx]) {
+      refs[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Flash effect
+      refs[idx].style.outline = '3px solid var(--accent)';
+      refs[idx].style.outlineOffset = '4px';
+      refs[idx].style.transition = 'outline 0.3s ease';
+      setTimeout(() => {
+        if (refs[idx]) {
+          refs[idx].style.outline = 'none';
+        }
+      }, 2000);
+    }
+  };
+
   const loadChapter = async () => {
     setLoading(true);
     try {
@@ -59,18 +99,60 @@ export default function ChapterReader() {
       setStory(sRes.data);
       setChapters(chsRes.data);
       setComments(cmRes.data);
-      if (user) saveReadingHistory({ storyId, chapterId }).catch(() => {});
+      if (user) {
+        saveReadingHistory({ storyId, chapterId }).catch(() => { });
+        loadBookmarks();
+      }
       try {
         const readChapters = JSON.parse(localStorage.getItem('readChapters') || '[]');
         if (!readChapters.includes(chapterId)) {
           readChapters.push(chapterId);
           localStorage.setItem('readChapters', JSON.stringify(readChapters));
         }
-      } catch {}
+      } catch { }
     } catch (e) {
       console.error(e);
     }
     setLoading(false);
+  };
+
+  const loadBookmarks = async () => {
+    try {
+      const res = await getBookmarksByChapter(chapterId);
+      setChapterBookmarks(res.data);
+    } catch {
+      setChapterBookmarks([]);
+    }
+  };
+
+  const isPageBookmarked = (pageIdx) => {
+    return chapterBookmarks.find(b => b.pageIndex === pageIdx);
+  };
+
+  const handleToggleBookmark = async (pageIdx) => {
+    if (!user) return alert('Vui lòng đăng nhập để đánh dấu!');
+    const existing = isPageBookmarked(pageIdx);
+    setBookmarkAnimating(pageIdx);
+    try {
+      if (existing) {
+        await deleteBookmark(existing.id);
+      } else {
+        const isManga = story?.type === 'MANGA';
+        const note = isManga
+          ? `Trang ${pageIdx + 1} - Ch.${chapter.chapterNumber}: ${chapter.title}`
+          : `Đoạn ${pageIdx + 1} - Ch.${chapter.chapterNumber}: ${chapter.title}`;
+        await addBookmark({
+          storyId,
+          chapterId,
+          pageIndex: pageIdx,
+          note,
+        });
+      }
+      await loadBookmarks();
+    } catch (e) {
+      console.error(e);
+    }
+    setTimeout(() => setBookmarkAnimating(null), 400);
   };
 
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
@@ -87,8 +169,16 @@ export default function ChapterReader() {
     setComments(cmRes.data);
   };
 
+  // Split novel content into paragraphs
+  const getNovelParagraphs = () => {
+    if (!chapter?.content) return [];
+    return chapter.content.split('\n').filter(p => p.trim().length > 0);
+  };
+
   if (loading) return <div className="loading"><div className="spinner" />Dang tai...</div>;
   if (!chapter || !story) return <div className="container"><p>Khong tim thay chuong.</p></div>;
+
+  const novelParagraphs = isManga ? [] : getNovelParagraphs();
 
   return (
     <div style={{ minHeight: '100vh', background: isManga ? 'var(--bg-primary)' : bgColor, transition: 'background 0.25s ease' }}>
@@ -198,22 +288,97 @@ export default function ChapterReader() {
         }}>{isManga ? 'Truyen Tranh' : 'Light Novel'}</span>
       </div>
 
+      {/* Bookmark Legend */}
+      {user && (
+        <div style={{
+          textAlign: 'center',
+          padding: '0.25rem 1rem 0.75rem',
+          fontSize: '0.78rem',
+          color: 'var(--text-secondary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+        }}>
+          <span style={{ fontSize: '1rem' }}>🔖</span>
+          <span>Bấm vào nút đánh dấu bên cạnh {isManga ? 'trang ảnh' : 'đoạn văn'} để bookmark vị trí đọc</span>
+        </div>
+      )}
+
       {/* Content */}
       <div style={{ maxWidth: isManga ? '900px' : '750px', margin: '0 auto', padding: '1rem' }}>
         {isManga ? (
-          /* === MANGA READER: Image Pages === */
+          /* === MANGA READER: Image Pages with Bookmark Buttons === */
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
             {chapter.pages && chapter.pages.length > 0 ? (
-              chapter.pages.map((page, idx) => (
-                <img
-                  key={idx}
-                  src={page}
-                  alt={`Trang ${idx + 1}`}
-                  style={{ width: '100%', maxWidth: '900px', display: 'block', borderRadius: '2px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-                  loading="lazy"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              ))
+              chapter.pages.map((page, idx) => {
+                const bm = isPageBookmarked(idx);
+                const isAnimating = bookmarkAnimating === idx;
+                return (
+                  <div
+                    key={idx}
+                    ref={el => pageRefs.current[idx] = el}
+                    style={{ position: 'relative', width: '100%', maxWidth: '900px' }}
+                  >
+                    <img
+                      src={page}
+                      alt={`Trang ${idx + 1}`}
+                      style={{ width: '100%', display: 'block', borderRadius: '2px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                      loading="lazy"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    {/* Bookmark button - top right of each image */}
+                    {user && (
+                      <button
+                        onClick={() => handleToggleBookmark(idx)}
+                        title={bm ? 'Bỏ đánh dấu trang này' : 'Đánh dấu trang này'}
+                        style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.3rem',
+                          background: bm
+                            ? 'linear-gradient(135deg, #f59e0b, #ef4444)'
+                            : 'rgba(0,0,0,0.55)',
+                          color: '#fff',
+                          backdropFilter: 'blur(6px)',
+                          boxShadow: bm
+                            ? '0 2px 12px rgba(245,158,11,0.5)'
+                            : '0 2px 8px rgba(0,0,0,0.3)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          transform: isAnimating ? 'scale(1.3)' : 'scale(1)',
+                          zIndex: 10,
+                        }}
+                      >
+                        {bm ? '🔖' : '📌'}
+                      </button>
+                    )}
+                    {/* Page number indicator */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '8px',
+                      background: 'rgba(0,0,0,0.6)',
+                      color: '#fff',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      backdropFilter: 'blur(4px)',
+                    }}>
+                      Trang {idx + 1}/{chapter.pages.length}
+                    </div>
+                  </div>
+                );
+              })
             ) : (
               <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                 <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎨</div>
@@ -222,21 +387,83 @@ export default function ChapterReader() {
             )}
           </div>
         ) : (
-          /* === NOVEL READER: Text Content === */
+          /* === NOVEL READER: Text Content with Paragraph Bookmarks === */
           <div style={{
-            fontSize: `${fontSize}px`,
-            fontFamily,
-            color: textColor,
-            lineHeight,
-            whiteSpace: 'pre-wrap',
-            textAlign: 'justify',
-            padding: '1.5rem',
             background: bgColor,
             borderRadius: '12px',
             border: '1px solid var(--border)',
             boxShadow: 'var(--shadow)',
+            padding: '1.5rem',
           }}>
-            {chapter.content || 'Chuong nay chua co noi dung.'}
+            {novelParagraphs.length > 0 ? (
+              novelParagraphs.map((para, idx) => {
+                const bm = isPageBookmarked(idx);
+                const isAnimating = bookmarkAnimating === idx;
+                return (
+                  <div
+                    key={idx}
+                    ref={el => paragraphRefs.current[idx] = el}
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      gap: '0.5rem',
+                      alignItems: 'flex-start',
+                      marginBottom: '0.25rem',
+                      padding: '0.35rem 0.25rem 0.35rem 0',
+                      borderRadius: '6px',
+                      transition: 'background 0.2s ease',
+                      background: bm ? 'rgba(245,158,11,0.08)' : 'transparent',
+                      borderLeft: bm ? '3px solid #f59e0b' : '3px solid transparent',
+                    }}
+                  >
+                    {/* Bookmark button for paragraph */}
+                    {user && (
+                      <button
+                        onClick={() => handleToggleBookmark(idx)}
+                        title={bm ? 'Bỏ đánh dấu đoạn này' : 'Đánh dấu đoạn này'}
+                        style={{
+                          flexShrink: 0,
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.85rem',
+                          background: bm
+                            ? 'linear-gradient(135deg, #f59e0b, #ef4444)'
+                            : 'rgba(128,128,128,0.15)',
+                          color: bm ? '#fff' : 'var(--text-secondary)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          transform: isAnimating ? 'scale(1.3)' : 'scale(1)',
+                          opacity: bm ? 1 : 0.4,
+                          marginTop: '2px',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+                        onMouseLeave={e => { if (!bm) e.currentTarget.style.opacity = '0.4'; }}
+                      >
+                        {bm ? '🔖' : '📌'}
+                      </button>
+                    )}
+                    <p style={{
+                      margin: 0,
+                      fontSize: `${fontSize}px`,
+                      fontFamily,
+                      color: textColor,
+                      lineHeight,
+                      textAlign: 'justify',
+                      flex: 1,
+                    }}>
+                      {para}
+                    </p>
+                  </div>
+                );
+              })
+            ) : (
+              <p style={{ color: textColor }}>Chuong nay chua co noi dung.</p>
+            )}
           </div>
         )}
       </div>

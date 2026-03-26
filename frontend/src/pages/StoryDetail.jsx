@@ -25,7 +25,7 @@ export default function StoryDetail() {
 
   useEffect(() => {
     loadStory();
-    incrementViews(id).catch(() => {});
+    incrementViews(id).catch(() => { });
   }, [id]);
 
   const loadStory = async () => {
@@ -41,8 +41,8 @@ export default function StoryDetail() {
       setRelatedStories(relRes.data);
 
       if (user) {
-        isFollowing(id).then(r => setFollowing(r.data.isFollowing)).catch(() => {});
-        getUserRating(id).then(r => { if (r.data.score) setUserRating(r.data.score); }).catch(() => {});
+        isFollowing(id).then(r => setFollowing(r.data.isFollowing)).catch(() => { });
+        getUserRating(id).then(r => { if (r.data.score) setUserRating(r.data.score); }).catch(() => { });
       }
     } catch (e) { console.error(e); }
     setLoading(false);

@@ -10,12 +10,27 @@ public class BookmarkRequest {
 
     private String note;
 
-    public String getStoryId() { return storyId; }
-    public void setStoryId(String storyId) { this.storyId = storyId; }
+    public String getStoryId() {
+        return storyId;
+    }
 
-    public String getChapterId() { return chapterId; }
-    public void setChapterId(String chapterId) { this.chapterId = chapterId; }
+    public void setStoryId(String storyId) {
+        this.storyId = storyId;
+    }
 
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
+    public String getChapterId() {
+        return chapterId;
+    }
+
+    public void setChapterId(String chapterId) {
+        this.chapterId = chapterId;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
 }

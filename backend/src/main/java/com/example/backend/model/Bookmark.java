@@ -24,7 +24,8 @@ public class Bookmark {
 
     private Date createdAt = new Date();
 
-    public Bookmark() {}
+    public Bookmark() {
+    }
 
     public Bookmark(String userId, String storyId, String chapterId, String note) {
         this.userId = userId;
@@ -33,21 +34,51 @@ public class Bookmark {
         this.note = note;
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getId() {
+        return id;
+    }
 
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public void setId(String id) {
+        this.id = id;
+    }
 
-    public String getStoryId() { return storyId; }
-    public void setStoryId(String storyId) { this.storyId = storyId; }
+    public String getUserId() {
+        return userId;
+    }
 
-    public String getChapterId() { return chapterId; }
-    public void setChapterId(String chapterId) { this.chapterId = chapterId; }
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
 
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
+    public String getStoryId() {
+        return storyId;
+    }
 
-    public Date getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
+    public void setStoryId(String storyId) {
+        this.storyId = storyId;
+    }
+
+    public String getChapterId() {
+        return chapterId;
+    }
+
+    public void setChapterId(String chapterId) {
+        this.chapterId = chapterId;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
 }

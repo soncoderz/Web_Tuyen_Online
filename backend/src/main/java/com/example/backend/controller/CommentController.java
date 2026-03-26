@@ -42,12 +42,11 @@ public class CommentController {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
         Comment comment = new Comment(
-            request.getStoryId(),
-            request.getChapterId(),
-            userDetails.getId(),
-            userDetails.getUsername(),
-            request.getContent()
-        );
+                request.getStoryId(),
+                request.getChapterId(),
+                userDetails.getId(),
+                userDetails.getUsername(),
+                request.getContent());
         commentRepository.save(comment);
         return ResponseEntity.ok(comment);
     }
