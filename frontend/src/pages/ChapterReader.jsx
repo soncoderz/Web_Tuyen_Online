@@ -17,11 +17,12 @@ const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
 function MangaPageWithComments({
   page,
   idx,
-  totalPages,
   storyId,
   chapterId,
   user,
   initialComments = [],
+  showCommentToggle = true,
+  onPageCommentsChange,
 }) {
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState(initialComments);
@@ -39,6 +40,12 @@ function MangaPageWithComments({
       setComments(initialComments);
     }
   }, [initialComments, open]);
+
+  useEffect(() => {
+    if (!showCommentToggle) {
+      setOpen(false);
+    }
+  }, [showCommentToggle]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -64,8 +71,10 @@ function MangaPageWithComments({
     setLoading(true);
     try {
       const res = await getCommentsByPage(chapterId, idx);
-      setComments(res.data || []);
-      setCommentCount(res.data?.length || 0);
+      const nextComments = res.data || [];
+      setComments(nextComments);
+      setCommentCount(nextComments.length);
+      onPageCommentsChange?.(idx, nextComments);
     } catch (e) {
       console.error(e);
     }
@@ -73,6 +82,7 @@ function MangaPageWithComments({
   };
 
   const togglePanel = (event) => {
+    if (!showCommentToggle) return;
     event?.stopPropagation();
     const nextOpen = !open;
     setOpen(nextOpen);
@@ -108,29 +118,13 @@ function MangaPageWithComments({
       flexWrap: open ? 'wrap' : 'nowrap',
       alignItems: 'flex-start',
       justifyContent: 'center',
-      gap: open ? '12px' : '0',
+      gap: open ? '10px' : '0',
+      margin: 0,
+      padding: 0,
+      lineHeight: 0,
       transition: 'gap 0.3s ease',
     }}>
-      <div className="manga-page-media" style={{ position: 'relative', flex: '1 1 0', minWidth: 0, width: '100%', maxWidth: '900px' }}>
-        <div style={{
-          position: 'absolute',
-          top: '8px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: '0.68rem',
-          color: '#fff',
-          padding: '0.2rem 0.7rem',
-          borderRadius: '999px',
-          background: 'rgba(15, 23, 42, 0.72)',
-          backdropFilter: 'blur(8px)',
-          fontWeight: 700,
-          zIndex: 5,
-          pointerEvents: 'none',
-          boxShadow: '0 4px 18px rgba(15, 23, 42, 0.22)',
-        }}>
-          Trang {idx + 1} / {totalPages}
-        </div>
-
+      <div className="manga-page-media" style={{ position: 'relative', flex: '1 1 0', minWidth: 0, width: '100%', maxWidth: '900px', margin: 0, padding: 0 }}>
         <img
           src={page}
           alt={`Trang ${idx + 1}`}
@@ -138,14 +132,17 @@ function MangaPageWithComments({
             width: '100%',
             maxWidth: '900px',
             display: 'block',
-            borderRadius: '2px',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
+            margin: 0,
+            padding: 0,
+            borderRadius: 0,
+            background: 'transparent',
+            border: 'none',
           }}
           loading="lazy"
           onError={(e) => { e.target.style.display = 'none'; }}
         />
 
+        {showCommentToggle && (
         <button
           className="manga-page-comment-toggle"
           ref={btnRef}
@@ -204,8 +201,10 @@ function MangaPageWithComments({
             </span>
           )}
         </button>
+        )}
       </div>
 
+      {showCommentToggle && (
       <div
         className={`page-comment-panel ${open ? 'open' : ''}`}
         ref={panelRef}
@@ -315,6 +314,7 @@ function MangaPageWithComments({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -340,6 +340,8 @@ export default function ChapterReader() {
   const [gifError, setGifError] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showPageCommentButtons, setShowPageCommentButtons] = useState(true);
+  const [pageCommentsCache, setPageCommentsCache] = useState({});
   const searchTimer = useRef(null);
 
   // Reader settings
@@ -352,6 +354,10 @@ export default function ChapterReader() {
 
   useEffect(() => {
     loadChapter();
+  }, [chapterId]);
+
+  useEffect(() => {
+    setPageCommentsCache({});
   }, [chapterId]);
 
   useEffect(() => {
@@ -403,14 +409,15 @@ export default function ChapterReader() {
   const nextChapter = currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null;
   const isManga = story?.type === 'MANGA';
   const readerTopOffset = 'var(--header-height, 64px)';
+  const chapterComments = comments.filter((comment) => comment.chapterId === chapterId);
   const pageCommentsByIndex = {};
-  comments.forEach((comment) => {
+  chapterComments.forEach((comment) => {
     if (comment.chapterId === chapterId && comment.pageIndex !== null && comment.pageIndex !== undefined) {
       if (!pageCommentsByIndex[comment.pageIndex]) pageCommentsByIndex[comment.pageIndex] = [];
       pageCommentsByIndex[comment.pageIndex].push(comment);
     }
   });
-  const visibleComments = comments.filter((comment) => comment.pageIndex === null || comment.pageIndex === undefined);
+  const visibleComments = chapterComments.filter((comment) => comment.pageIndex === null || comment.pageIndex === undefined);
 
   const handleComment = async () => {
     if (!user) return alert('Vui long dang nhap!');
@@ -494,7 +501,33 @@ export default function ChapterReader() {
           to { opacity: 1; transform: translateX(0); }
         }
 
+        .chapter-reader-content--manga,
+        .chapter-reader-content--manga > div,
+        .chapter-reader-content--manga .manga-page-shell,
+        .chapter-reader-content--manga .manga-page-media {
+          width: 100%;
+        }
+
+        .chapter-reader-content--manga .manga-page-media,
+        .chapter-reader-content--manga .manga-page-media img {
+          line-height: 0;
+        }
+
+        .chapter-reader-content--manga .manga-page-media img {
+          display: block;
+          width: 100%;
+          vertical-align: top;
+        }
+
         @media (max-width: 768px) {
+          .chapter-reader-content.chapter-reader-content--manga {
+            width: 100vw !important;
+            max-width: none !important;
+            margin-left: calc(50% - 50vw) !important;
+            margin-right: calc(50% - 50vw) !important;
+            padding: 0 !important;
+          }
+
           .chapter-reader-topbar {
             padding: 0.75rem;
             gap: 0.6rem;
@@ -540,8 +573,20 @@ export default function ChapterReader() {
             border-radius: 10px !important;
           }
 
+          .manga-page-shell {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+
           .manga-page-shell.is-open {
             gap: 0.75rem !important;
+          }
+
+          .manga-page-media {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           .manga-page-comment-toggle {
@@ -558,11 +603,13 @@ export default function ChapterReader() {
           }
 
           .page-comment-card {
-            max-height: 420px !important;
+            max-height: min(55vh, 420px) !important;
+            border-radius: 12px !important;
           }
 
           .page-comment-input-row {
             flex-wrap: wrap;
+            padding: 0.7rem !important;
           }
 
           .page-comment-input-row .btn {
@@ -671,6 +718,24 @@ export default function ChapterReader() {
               <option key={ch.id} value={ch.id}>Ch.{ch.chapterNumber}: {ch.title}</option>
             ))}
           </select>
+          {isManga && (
+            <button
+              onClick={() => setShowPageCommentButtons((value) => !value)}
+              style={{
+                background: showPageCommentButtons ? 'var(--accent)' : 'var(--bg-card)',
+                color: showPageCommentButtons ? '#fff' : 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                padding: '0.35rem 0.65rem',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                flexShrink: 0,
+              }}
+              title={showPageCommentButtons ? 'An icon binh luan tren tung anh' : 'Hien icon binh luan tren tung anh'}
+            >
+              {showPageCommentButtons ? 'An icon BL' : 'Hien icon BL'}
+            </button>
+          )}
           {!isManga && (
             <button
               onClick={() => setShowSettings(!showSettings)}
@@ -744,20 +809,26 @@ export default function ChapterReader() {
       </div>
 
       {/* Content */}
-      <div className="chapter-reader-content" style={{ maxWidth: isManga ? '900px' : '750px', margin: '0 auto', padding: '1rem' }}>
+      <div className={`chapter-reader-content ${isManga ? 'chapter-reader-content--manga' : ''}`} style={{ maxWidth: isManga ? '900px' : '750px', margin: '0 auto', padding: isManga ? '0' : '1rem' }}>
         {isManga ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px', width: '100%', lineHeight: 0 }}>
             {chapter.pages && chapter.pages.length > 0 ? (
               chapter.pages.map((page, idx) => (
                 <MangaPageWithComments
                   key={`${chapterId}-${idx}`}
                   page={page}
                   idx={idx}
-                  totalPages={chapter.pages.length}
                   storyId={storyId}
                   chapterId={chapterId}
                   user={user}
-                  initialComments={pageCommentsByIndex[idx] || []}
+                  initialComments={pageCommentsCache[idx] || pageCommentsByIndex[idx] || []}
+                  showCommentToggle={showPageCommentButtons}
+                  onPageCommentsChange={(pageIdx, nextComments) => {
+                    setPageCommentsCache((prev) => ({
+                      ...prev,
+                      [pageIdx]: nextComments,
+                    }));
+                  }}
                 />
               ))
             ) : (
