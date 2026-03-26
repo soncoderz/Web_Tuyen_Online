@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   getCategories,
   getChaptersByStory,
@@ -9,6 +9,8 @@ import {
   getHotStories as getStoriesHotTop10,
 } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import BookmarkIcon from "../components/BookmarkIcon";
+import useBookmarks, { getBookmarkLocation } from "../hooks/useBookmarks";
 
 function getReadChapters() {
   try {
@@ -19,7 +21,9 @@ function getReadChapters() {
 }
 
 export default function Home() {
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const { getStoryBookmark } = useBookmarks(user);
   const [trending, setTrending] = useState([]);
   const [newReleases, setNewReleases] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
@@ -81,6 +85,30 @@ export default function Home() {
         Dang tai...
       </div>
     );
+
+  const handleStoryBookmark = (storyId) => {
+    if (!user) {
+      alert("Vui long dang nhap!");
+      return;
+    }
+
+    const bookmark = getStoryBookmark(storyId);
+    if (!bookmark?.chapterId) {
+      alert("Bookmark duoc dat trong luc doc chuong.");
+      return;
+    }
+
+    const { pageIndex, paragraphIndex } = getBookmarkLocation(bookmark);
+    const params = new URLSearchParams();
+    if (typeof pageIndex === "number") {
+      params.set("page", String(pageIndex + 1));
+    }
+    if (typeof paragraphIndex === "number") {
+      params.set("paragraph", String(paragraphIndex + 1));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    navigate(`/story/${bookmark.storyId}/chapter/${bookmark.chapterId}${suffix}`);
+  };
 
   return (
     <div className="container">
@@ -168,6 +196,8 @@ export default function Home() {
                 key={s.id}
                 story={s}
                 chapters={chaptersMap[s.id] || []}
+                bookmarked={Boolean(getStoryBookmark(s.id))}
+                onToggleBookmark={() => handleStoryBookmark(s.id)}
               />
             ))}
           </div>
@@ -195,6 +225,8 @@ export default function Home() {
                 key={s.id}
                 story={s}
                 chapters={chaptersMap[s.id] || []}
+                bookmarked={Boolean(getStoryBookmark(s.id))}
+                onToggleBookmark={() => handleStoryBookmark(s.id)}
               />
             ))}
           </div>
@@ -222,6 +254,8 @@ export default function Home() {
                 key={s.id}
                 story={s}
                 chapters={chaptersMap[s.id] || []}
+                bookmarked={Boolean(getStoryBookmark(s.id))}
+                onToggleBookmark={() => handleStoryBookmark(s.id)}
               />
             ))}
           </div>
@@ -424,11 +458,30 @@ function formatTimeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString("vi-VN");
 }
 
-function StoryCard({ story, chapters }) {
+function StoryCard({
+  story,
+  chapters,
+  bookmarked,
+  onToggleBookmark,
+}) {
   const readChapters = getReadChapters();
 
   return (
     <div className="story-card">
+      <button
+        type="button"
+        className={`story-bookmark-btn ${bookmarked ? "active" : ""}`}
+        aria-pressed={bookmarked}
+        aria-label={bookmarked ? `Mo bookmark ${story.title}` : `Mo reader de dat bookmark cho ${story.title}`}
+        title={bookmarked ? "Mo bookmark" : "Bookmark trong reader"}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggleBookmark?.();
+        }}
+      >
+        <BookmarkIcon filled={bookmarked} className="story-bookmark-icon" />
+      </button>
       <Link
         to={`/story/${story.id}`}
         style={{ textDecoration: "none", color: "inherit" }}

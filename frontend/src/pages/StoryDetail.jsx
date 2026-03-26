@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import BookmarkIcon from '../components/BookmarkIcon';
 import { useAuth } from '../context/AuthContext';
+import useBookmarks, { getBookmarkLocation } from '../hooks/useBookmarks';
 import {
   getStory, getChaptersByStory, getCommentsByStory, getStoryRating, getUserRating,
-  incrementViews, followStory, isFollowing, addBookmark, createComment, rateStory,
+  incrementViews, followStory, isFollowing, createComment, rateStory,
   createReport, getRelatedStories
 } from '../services/api';
 
@@ -11,7 +13,9 @@ const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
 
 export default function StoryDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const { getStoryBookmark } = useBookmarks(user);
   const [story, setStory] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [comments, setComments] = useState([]);
@@ -31,6 +35,7 @@ export default function StoryDetail() {
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState('chapters');
 
   useEffect(() => {
@@ -40,22 +45,73 @@ export default function StoryDetail() {
 
   const loadStory = async () => {
     setLoading(true);
+    setLoadError('');
     try {
-      const [sRes, chRes, cmRes, rRes, relRes] = await Promise.all([
-        getStory(id), getChaptersByStory(id), getCommentsByStory(id), getStoryRating(id), getRelatedStories(id)
+      const [
+        storyResult,
+        chaptersResult,
+        commentsResult,
+        ratingResult,
+        relatedResult,
+      ] = await Promise.allSettled([
+        getStory(id),
+        getChaptersByStory(id),
+        getCommentsByStory(id),
+        getStoryRating(id),
+        getRelatedStories(id),
       ]);
-      setStory(sRes.data);
-      setChapters(chRes.data);
-      setComments(cmRes.data);
+
+      if (storyResult.status !== 'fulfilled') {
+        throw storyResult.reason;
+      }
+
+      setStory(storyResult.value.data || null);
+      setChapters(
+        chaptersResult.status === 'fulfilled' ? chaptersResult.value.data || [] : [],
+      );
+      setComments(
+        commentsResult.status === 'fulfilled' ? commentsResult.value.data || [] : [],
+      );
       setVisibleCount(5);
-      setRating(rRes.data);
-      setRelatedStories(relRes.data);
+      setRating(
+        ratingResult.status === 'fulfilled'
+          ? ratingResult.value.data || { averageRating: 0, totalRatings: 0 }
+          : { averageRating: 0, totalRatings: 0 },
+      );
+      setRelatedStories(
+        relatedResult.status === 'fulfilled' ? relatedResult.value.data || [] : [],
+      );
 
       if (user) {
-        isFollowing(id).then(r => setFollowing(r.data.isFollowing)).catch(() => {});
-        getUserRating(id).then(r => { if (r.data.score) setUserRating(r.data.score); }).catch(() => {});
+        const [followingResult, userRatingResult] = await Promise.allSettled([
+          isFollowing(id),
+          getUserRating(id),
+        ]);
+        setFollowing(
+          followingResult.status === 'fulfilled'
+            ? Boolean(followingResult.value.data?.isFollowing)
+            : false,
+        );
+        setUserRating(
+          userRatingResult.status === 'fulfilled' && userRatingResult.value.data?.score
+            ? userRatingResult.value.data.score
+            : 0,
+        );
+      } else {
+        setFollowing(false);
+        setUserRating(0);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      setStory(null);
+      setChapters([]);
+      setComments([]);
+      setRating({ averageRating: 0, totalRatings: 0 });
+      setRelatedStories([]);
+      setFollowing(false);
+      setUserRating(0);
+      setLoadError('Khong tai duoc truyen nay. Thu tai lai sau.');
+    }
     setLoading(false);
   };
 
@@ -67,8 +123,23 @@ export default function StoryDetail() {
 
   const handleBookmark = async () => {
     if (!user) return alert('Vui lòng đăng nhập!');
-    await addBookmark({ storyId: id, note: story.title });
-    alert('Đã bookmark!');
+
+    const bookmark = getStoryBookmark(id);
+    if (!bookmark?.chapterId) {
+      alert('Bookmark duoc dat trong luc doc chuong.');
+      return;
+    }
+
+    const { pageIndex, paragraphIndex } = getBookmarkLocation(bookmark);
+    const params = new URLSearchParams();
+    if (typeof pageIndex === 'number') {
+      params.set('page', String(pageIndex + 1));
+    }
+    if (typeof paragraphIndex === 'number') {
+      params.set('paragraph', String(paragraphIndex + 1));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    navigate(`/story/${bookmark.storyId}/chapter/${bookmark.chapterId}${suffix}`);
   };
 
   const handleRate = async (score) => {
@@ -142,7 +213,8 @@ export default function StoryDetail() {
   };
 
   if (loading) return <div className="loading"><div className="spinner" />Đang tải...</div>;
-  if (!story) return <div className="container"><p>Không tìm thấy truyện.</p></div>;
+  if (!story) return <div className="container"><p>{loadError || 'Không tìm thấy truyện.'}</p></div>;
+  const storyBookmark = getStoryBookmark(id);
 
   return (
     <div className="container">
@@ -183,7 +255,13 @@ export default function StoryDetail() {
             <button className={`btn ${following ? 'btn-danger' : 'btn-outline'}`} onClick={handleFollow}>
               {following ? '❤️ Đang theo dõi' : '🤍 Theo dõi'}
             </button>
-            <button className="btn btn-outline" onClick={handleBookmark}>📑 Bookmark</button>
+            <button
+              className={`btn ${storyBookmark ? 'btn-primary' : 'btn-outline'}`}
+              onClick={handleBookmark}
+            >
+              <BookmarkIcon filled={Boolean(storyBookmark)} className="story-detail-bookmark-icon" />
+              {storyBookmark ? 'Mở bookmark' : 'Bookmark trong reader'}
+            </button>
             <button className="btn btn-outline" onClick={() => setShowReport(true)} style={{ color: 'var(--warning)' }}>⚠️ Báo lỗi</button>
           </div>
         </div>

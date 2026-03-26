@@ -20,6 +20,12 @@ public class Bookmark {
 
     private String chapterId;
 
+    private Integer pageIndex;
+
+    private Integer paragraphIndex;
+
+    private String textSnippet;
+
     private String note;
 
     private Date createdAt = new Date();
@@ -30,6 +36,23 @@ public class Bookmark {
         this.userId = userId;
         this.storyId = storyId;
         this.chapterId = chapterId;
+        this.note = note;
+    }
+
+    public Bookmark(
+            String userId,
+            String storyId,
+            String chapterId,
+            Integer pageIndex,
+            Integer paragraphIndex,
+            String textSnippet,
+            String note) {
+        this.userId = userId;
+        this.storyId = storyId;
+        this.chapterId = chapterId;
+        this.pageIndex = pageIndex;
+        this.paragraphIndex = paragraphIndex;
+        this.textSnippet = textSnippet;
         this.note = note;
     }
 
@@ -44,6 +67,15 @@ public class Bookmark {
 
     public String getChapterId() { return chapterId; }
     public void setChapterId(String chapterId) { this.chapterId = chapterId; }
+
+    public Integer getPageIndex() { return pageIndex; }
+    public void setPageIndex(Integer pageIndex) { this.pageIndex = pageIndex; }
+
+    public Integer getParagraphIndex() { return paragraphIndex; }
+    public void setParagraphIndex(Integer paragraphIndex) { this.paragraphIndex = paragraphIndex; }
+
+    public String getTextSnippet() { return textSnippet; }
+    public void setTextSnippet(String textSnippet) { this.textSnippet = textSnippet; }
 
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
