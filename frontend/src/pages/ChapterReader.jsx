@@ -59,6 +59,7 @@ function MangaPageWithComments({
   bookmarked = false,
   bookmarkBusy = false,
   initialComments = [],
+  showBookmarkToggle = true,
   showCommentToggle = true,
   onPageCommentsChange,
   onToggleBookmark,
@@ -194,41 +195,43 @@ function MangaPageWithComments({
           onError={(e) => { e.target.style.display = 'none'; }}
         />
 
-        <button
-          type="button"
-          className="manga-page-bookmark-toggle"
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleBookmark?.(idx);
-          }}
-          title={bookmarked ? `Bo bookmark trang ${idx + 1}` : `Bookmark trang ${idx + 1}`}
-          aria-pressed={bookmarked}
-          disabled={bookmarkBusy}
-          style={{
-            position: 'absolute',
-            left: '12px',
-            bottom: '12px',
-            width: '42px',
-            height: '42px',
-            borderRadius: '50%',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            background: bookmarked
-              ? 'linear-gradient(135deg, var(--accent), var(--warning))'
-              : 'rgba(15, 23, 42, 0.82)',
-            color: '#fff',
-            cursor: bookmarkBusy ? 'wait' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: bookmarked
-              ? '0 0 18px rgba(108, 99, 255, 0.35)'
-              : '0 8px 24px rgba(15, 23, 42, 0.35)',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease',
-            zIndex: 10,
-          }}
-        >
-          <BookmarkIcon filled={bookmarked} className="story-bookmark-icon" />
-        </button>
+        {showBookmarkToggle && (
+          <button
+            type="button"
+            className="manga-page-bookmark-toggle"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleBookmark?.(idx);
+            }}
+            title={bookmarked ? `Bo bookmark trang ${idx + 1}` : `Bookmark trang ${idx + 1}`}
+            aria-pressed={bookmarked}
+            disabled={bookmarkBusy}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              bottom: '12px',
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              background: bookmarked
+                ? 'linear-gradient(135deg, var(--accent), var(--warning))'
+                : 'rgba(15, 23, 42, 0.82)',
+              color: '#fff',
+              cursor: bookmarkBusy ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: bookmarked
+                ? '0 0 18px rgba(108, 99, 255, 0.35)'
+                : '0 8px 24px rgba(15, 23, 42, 0.35)',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease',
+              zIndex: 10,
+            }}
+          >
+            <BookmarkIcon filled={bookmarked} className="story-bookmark-icon" />
+          </button>
+        )}
 
         {showCommentToggle && (
         <button
@@ -430,6 +433,7 @@ export default function ChapterReader() {
   const [gifError, setGifError] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showBookmarkButtons, setShowBookmarkButtons] = useState(true);
   const [showPageCommentButtons, setShowPageCommentButtons] = useState(true);
   const [pageCommentsCache, setPageCommentsCache] = useState({});
   const searchTimer = useRef(null);
@@ -969,6 +973,22 @@ export default function ChapterReader() {
               {showPageCommentButtons ? 'An icon BL' : 'Hien icon BL'}
             </button>
           )}
+          <button
+            onClick={() => setShowBookmarkButtons((value) => !value)}
+            style={{
+              background: showBookmarkButtons ? 'var(--accent)' : 'var(--bg-card)',
+              color: showBookmarkButtons ? '#fff' : 'var(--text-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              padding: '0.35rem 0.65rem',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              flexShrink: 0,
+            }}
+            title={showBookmarkButtons ? 'An bookmark khi doc' : 'Hien bookmark khi doc'}
+          >
+            {showBookmarkButtons ? 'An bookmark' : 'Hien bookmark'}
+          </button>
           {!isManga && (
             <button
               onClick={() => setShowSettings(!showSettings)}
@@ -1062,6 +1082,7 @@ export default function ChapterReader() {
                   bookmarked={isBookmarked(storyId, chapterId, idx, null)}
                   bookmarkBusy={isProcessing(storyId, chapterId, idx, null)}
                   initialComments={pageCommentsCache[idx] || pageCommentsByIndex[idx] || []}
+                  showBookmarkToggle={showBookmarkButtons}
                   showCommentToggle={showPageCommentButtons}
                   onPageCommentsChange={(pageIdx, nextComments) => {
                     setPageCommentsCache((prev) => ({
@@ -1110,27 +1131,29 @@ export default function ChapterReader() {
                     }}
                     style={{
                       position: 'relative',
-                      paddingRight: '3rem',
+                      paddingRight: showBookmarkButtons ? '3rem' : '0',
                       marginBottom: '1.35rem',
                       scrollMarginTop: 'calc(var(--header-height, 64px) + 32px)',
                     }}
                   >
-                    <button
-                      type="button"
-                      className={`story-bookmark-btn ${bookmarked ? 'active' : ''}`}
-                      aria-pressed={bookmarked}
-                      title={bookmarked ? `Bo bookmark doan ${paragraphIndex + 1}` : `Bookmark doan ${paragraphIndex + 1}`}
-                      disabled={isProcessing(storyId, chapterId, null, paragraphIndex)}
-                      style={{
-                        top: '0.1rem',
-                        right: '0',
-                        width: '34px',
-                        height: '34px',
-                      }}
-                      onClick={() => handleParagraphBookmark(paragraph, paragraphIndex)}
-                    >
-                      <BookmarkIcon filled={bookmarked} className="story-bookmark-icon" />
-                    </button>
+                    {showBookmarkButtons && (
+                      <button
+                        type="button"
+                        className={`story-bookmark-btn ${bookmarked ? 'active' : ''}`}
+                        aria-pressed={bookmarked}
+                        title={bookmarked ? `Bo bookmark doan ${paragraphIndex + 1}` : `Bookmark doan ${paragraphIndex + 1}`}
+                        disabled={isProcessing(storyId, chapterId, null, paragraphIndex)}
+                        style={{
+                          top: '0.1rem',
+                          right: '0',
+                          width: '34px',
+                          height: '34px',
+                        }}
+                        onClick={() => handleParagraphBookmark(paragraph, paragraphIndex)}
+                      >
+                        <BookmarkIcon filled={bookmarked} className="story-bookmark-icon" />
+                      </button>
+                    )}
                     <p
                       style={{
                         margin: 0,
