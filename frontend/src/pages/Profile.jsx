@@ -1,18 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import BookmarkIcon from '../components/BookmarkIcon';
 import { useAuth } from '../context/AuthContext';
+import useBookmarks, { getBookmarkLocation } from '../hooks/useBookmarks';
 import {
-  getReadingHistory,
-  getBookmarks,
-  deleteBookmark,
   deleteReadingHistoryItem,
-  getStory,
   getChapter,
-  getFollowedStories,
   getChaptersByStory,
+  getFollowedStories,
+  getReadingHistory,
+  getStory,
 } from '../services/api';
 
-// Helper: lấy danh sách chương đã đọc từ localStorage
 function getReadChapters() {
   try {
     return JSON.parse(localStorage.getItem('readChapters') || '[]');
@@ -21,24 +20,192 @@ function getReadChapters() {
   }
 }
 
-// Helper: kiểm tra ID MongoDB hợp lệ (24 ký tự hex)
 function isValidMongoId(id) {
-  return id && typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
+  return Boolean(id) && typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
 }
 
 function formatTimeAgo(dateStr) {
   if (!dateStr) return '';
+
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now - date;
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'Vừa xong';
-  if (diffMin < 60) return `${diffMin} phút trước`;
+
+  if (diffMin < 1) return 'Vua xong';
+  if (diffMin < 60) return `${diffMin} phut truoc`;
+
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour} giờ trước`;
+  if (diffHour < 24) return `${diffHour} gio truoc`;
+
   const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 30) return `${diffDay} ngày trước`;
+  if (diffDay < 30) return `${diffDay} ngay truoc`;
+
   return new Date(dateStr).toLocaleDateString('vi-VN');
+}
+
+function buildBookmarkStory(bookmark) {
+  const story = bookmark?.story || null;
+  const fallbackTitle = story?.title || 'Truyen khong con kha dung';
+
+  return {
+    id: story?.id || '',
+    title: fallbackTitle,
+    coverImage: story?.coverImage || '',
+    type: story?.type || null,
+    views: typeof story?.views === 'number' ? story.views : null,
+    averageRating:
+      typeof story?.averageRating === 'number' ? story.averageRating : null,
+  };
+}
+
+function getBookmarkNote(bookmark) {
+  if (bookmark?.textSnippet) {
+    return bookmark.textSnippet;
+  }
+
+  const note = bookmark?.note?.trim();
+  if (!note) {
+    return '';
+  }
+
+  const storyTitle = bookmark?.story?.title?.trim();
+  if (storyTitle && note === storyTitle) {
+    return '';
+  }
+
+  if (/^(Trang|Doan)\s+\d+$/i.test(note)) {
+    return '';
+  }
+
+  return note;
+}
+
+function getBookmarkLocationLabel(bookmark) {
+  const chapterNumber = bookmark?.chapter?.chapterNumber;
+  const chapterLabel =
+    typeof chapterNumber === 'number' ? `Ch.${chapterNumber}` : bookmark?.chapter?.title || '';
+
+  if (typeof bookmark?.pageIndex === 'number') {
+    return chapterLabel
+      ? `${chapterLabel} · Trang ${bookmark.pageIndex + 1}`
+      : `Trang ${bookmark.pageIndex + 1}`;
+  }
+
+  if (typeof bookmark?.paragraphIndex === 'number') {
+    return chapterLabel
+      ? `${chapterLabel} · Doan ${bookmark.paragraphIndex + 1}`
+      : `Doan ${bookmark.paragraphIndex + 1}`;
+  }
+
+  return chapterLabel;
+}
+
+function getBookmarkAction(bookmark) {
+  if (!bookmark?.story?.id) {
+    return { href: '#', label: 'Khong kha dung', disabled: true };
+  }
+
+  if (bookmark.chapterId && !bookmark.chapter?.id) {
+    return { href: '#', label: 'Khong mo duoc vi tri', disabled: true };
+  }
+
+  if (bookmark.chapter?.id) {
+    const params = new URLSearchParams();
+    if (typeof bookmark.pageIndex === 'number') {
+      params.set('page', String(bookmark.pageIndex + 1));
+    }
+    if (typeof bookmark.paragraphIndex === 'number') {
+      params.set('paragraph', String(bookmark.paragraphIndex + 1));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+
+    return {
+      href: `/story/${bookmark.story.id}/chapter/${bookmark.chapter.id}${suffix}`,
+      label: typeof bookmark.pageIndex === 'number'
+        ? `Doc Trang ${bookmark.pageIndex + 1}`
+        : typeof bookmark.paragraphIndex === 'number'
+          ? `Doc Doan ${bookmark.paragraphIndex + 1}`
+          : typeof bookmark.chapter.chapterNumber === 'number'
+            ? `Doc Ch.${bookmark.chapter.chapterNumber}`
+            : 'Doc ngay',
+      disabled: false,
+    };
+  }
+
+  return {
+    href: `/story/${bookmark.story.id}`,
+    label: 'Doc ngay',
+    disabled: false,
+  };
+}
+
+function getBookmarkChapterLabel(bookmark) {
+  if (typeof bookmark?.chapter?.chapterNumber === 'number') {
+    const chapterTitle = bookmark?.chapter?.title?.trim();
+    return chapterTitle
+      ? `Ch.${bookmark.chapter.chapterNumber}: ${chapterTitle}`
+      : `Ch.${bookmark.chapter.chapterNumber}`;
+  }
+
+  const chapterTitle = bookmark?.chapter?.title?.trim();
+  if (chapterTitle) {
+    return chapterTitle;
+  }
+
+  if (bookmark?.chapterId) {
+    return 'Chuong da luu';
+  }
+
+  return 'Bookmark tong quat';
+}
+
+function getBookmarkPositionLabel(bookmark) {
+  const { pageIndex, paragraphIndex } = getBookmarkLocation(bookmark);
+
+  if (typeof pageIndex === 'number') {
+    return `Trang ${pageIndex + 1}`;
+  }
+
+  if (typeof paragraphIndex === 'number') {
+    return `Doan ${paragraphIndex + 1}`;
+  }
+
+  return 'Vi tri da luu';
+}
+
+function getBookmarkProfileAction(bookmark) {
+  if (!bookmark?.story?.id) {
+    return { href: '#', label: 'Khong kha dung', disabled: true };
+  }
+
+  if (bookmark.chapterId && !bookmark.chapter?.id) {
+    return { href: '#', label: 'Khong mo duoc vi tri', disabled: true };
+  }
+
+  if (bookmark.chapter?.id) {
+    const { pageIndex, paragraphIndex } = getBookmarkLocation(bookmark);
+    const params = new URLSearchParams();
+    if (typeof pageIndex === 'number') {
+      params.set('page', String(pageIndex + 1));
+    }
+    if (typeof paragraphIndex === 'number') {
+      params.set('paragraph', String(paragraphIndex + 1));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+
+    return {
+      href: `/story/${bookmark.story.id}/chapter/${bookmark.chapter.id}${suffix}`,
+      label: 'Doc',
+      disabled: false,
+    };
+  }
+
+  return {
+    href: `/story/${bookmark.story.id}`,
+    label: 'Doc',
+    disabled: false,
+  };
 }
 
 export default function Profile() {
@@ -47,121 +214,142 @@ export default function Profile() {
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(searchParams.get('tab') || 'history');
   const [history, setHistory] = useState([]);
-  const [bookmarks, setBookmarks] = useState([]);
   const [followedStories, setFollowedStories] = useState([]);
   const [chaptersMap, setChaptersMap] = useState({});
   const [storyCache, setStoryCache] = useState({});
   const [chapterCache, setChapterCache] = useState({});
   const [loading, setLoading] = useState(true);
+  const {
+    bookmarks,
+    loading: bookmarksLoading,
+    isProcessing: isBookmarkProcessing,
+    toggleBookmark,
+  } = useBookmarks(user);
 
   useEffect(() => {
-    // Đợi AuthContext load xong trước khi kiểm tra user
-    if (authLoading) return;
-    
+    if (authLoading) {
+      return;
+    }
+
     if (!user) {
       navigate('/login');
       return;
     }
+
     loadData();
   }, [user, authLoading]);
 
   useEffect(() => {
-    const t = searchParams.get('tab');
-    if (t) setTab(t);
+    const nextTab = searchParams.get('tab');
+    if (nextTab) {
+      setTab(nextTab);
+    }
   }, [searchParams]);
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const [hRes, bRes] = await Promise.all([getReadingHistory(), getBookmarks()]);
-      setHistory(hRes.data);
-      setBookmarks(bRes.data);
 
-      // Lọc chỉ các storyId hợp lệ
+    try {
+      const [historyRes, followedRes] = await Promise.all([
+        getReadingHistory(),
+        getFollowedStories(),
+      ]);
+
+      const historyItems = historyRes.data || [];
+      const followedItems = followedRes.data || [];
+
+      setHistory(historyItems);
+      setFollowedStories(followedItems);
+
       const storyIds = Array.from(
-        new Set([
-          ...hRes.data.map((h) => h.storyId).filter(isValidMongoId),
-          ...bRes.data.map((b) => b.storyId).filter(isValidMongoId),
-        ])
+        new Set(historyItems.map((item) => item.storyId).filter(isValidMongoId)),
       );
 
       const storyResults = await Promise.all(
-        storyIds.map((sid) =>
-          getStory(sid)
-            .then((res) => ({ sid, data: res.data }))
-            .catch((err) => {
-              // Im lặng xử lý lỗi cho truyện không tồn tại
-              return { sid, data: { title: 'Truyện không tồn tại', id: sid } };
-            })
-        )
+        storyIds.map((storyId) =>
+          getStory(storyId)
+            .then((response) => ({ storyId, story: response.data }))
+            .catch(() => ({ storyId, story: null })),
+        ),
       );
 
-      const cache = {};
-      storyResults.forEach(({ sid, data }) => {
-        cache[sid] = data;
+      const nextStoryCache = {};
+      storyResults.forEach(({ storyId, story }) => {
+        nextStoryCache[storyId] = story;
       });
-      setStoryCache(cache);
+      setStoryCache(nextStoryCache);
 
-      // Lọc chỉ các chapterId hợp lệ
       const chapterIds = Array.from(
-        new Set([
-          ...hRes.data.map((h) => h.chapterId).filter(isValidMongoId),
-          ...bRes.data.map((b) => b.chapterId).filter(isValidMongoId),
-        ])
+        new Set(historyItems.map((item) => item.chapterId).filter(isValidMongoId)),
       );
 
-      if (chapterIds.length > 0) {
-        const chResults = await Promise.all(
-          chapterIds.map((cid) =>
-            getChapter(cid)
-              .then((res) => ({ cid, data: res.data }))
-              .catch(() => ({ cid, data: null }))
-          )
+      const chapterResults = await Promise.all(
+        chapterIds.map((chapterId) =>
+          getChapter(chapterId)
+            .then((response) => ({ chapterId, chapter: response.data }))
+            .catch(() => ({ chapterId, chapter: null })),
+        ),
+      );
+
+      const nextChapterCache = {};
+      chapterResults.forEach(({ chapterId, chapter }) => {
+        nextChapterCache[chapterId] = chapter;
+      });
+      setChapterCache(nextChapterCache);
+
+      if (followedItems.length > 0) {
+        const followedChapterResults = await Promise.all(
+          followedItems.map((story) =>
+            getChaptersByStory(story.id)
+              .then((response) => ({
+                storyId: story.id,
+                chapters: response.data || [],
+              }))
+              .catch(() => ({ storyId: story.id, chapters: [] })),
+          ),
         );
-        const chCache = {};
-        chResults.forEach(({ cid, data }) => {
-          chCache[cid] = data;
+
+        const nextChaptersMap = {};
+        followedChapterResults.forEach(({ storyId, chapters }) => {
+          const sorted = [...chapters].sort(
+            (a, b) => b.chapterNumber - a.chapterNumber,
+          );
+          nextChaptersMap[storyId] = sorted.slice(0, 2);
         });
-        setChapterCache(chCache);
+        setChaptersMap(nextChaptersMap);
       } else {
-        setChapterCache({});
+        setChaptersMap({});
       }
-
-      const fRes = await getFollowedStories();
-      setFollowedStories(fRes.data);
-
-      if (fRes.data.length > 0) {
-        const chResults = await Promise.all(
-          fRes.data.map((s) =>
-            getChaptersByStory(s.id)
-              .then((r) => ({ storyId: s.id, chapters: r.data }))
-              .catch(() => ({ storyId: s.id, chapters: [] }))
-          )
-        );
-        const map = {};
-        chResults.forEach(({ storyId, chapters }) => {
-          const sorted = [...chapters].sort((a, b) => b.chapterNumber - a.chapterNumber);
-          map[storyId] = sorted.slice(0, 2);
-        });
-        setChaptersMap(map);
-      }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
-
-  const handleDeleteBookmark = async (id) => {
-    await deleteBookmark(id);
-    setBookmarks(bookmarks.filter((b) => b.id !== id));
   };
 
   const handleDeleteHistory = async (id) => {
     await deleteReadingHistoryItem(id);
-    setHistory(history.filter((h) => h.id !== id));
+    setHistory((prev) => prev.filter((item) => item.id !== id));
   };
 
-  if (!user) return null;
+  const handleDeleteBookmark = async (bookmark) => {
+    try {
+      await toggleBookmark({
+        storyId: bookmark.storyId,
+        chapterId: bookmark.chapterId,
+        pageIndex: bookmark.pageIndex,
+        paragraphIndex: bookmark.paragraphIndex,
+      });
+    } catch (error) {
+      alert('Khong cap nhat duoc bookmark.');
+    }
+  };
+
+  if (!user) {
+    return null;
+  }
+
+  const pageLoading = loading || bookmarksLoading;
 
   return (
     <div className="container">
@@ -176,19 +364,29 @@ export default function Profile() {
         ) : (
           <div className="profile-avatar">{user.username?.[0]?.toUpperCase()}</div>
         )}
+
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{user.username}</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{user.email}</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            {user.email}
+          </p>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-            {user.roles?.map((r) => (
-              <span key={r} className="category-tag">
-                {r.replace('ROLE_', '')}
+            {user.roles?.map((role) => (
+              <span key={role} className="category-tag">
+                {role.replace('ROLE_', '')}
               </span>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.9rem', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.75rem',
+              marginTop: '0.9rem',
+              flexWrap: 'wrap',
+            }}
+          >
             <Link to="/studio" className="btn btn-primary btn-sm">
-              Đăng truyện và thêm chương
+              Dang truyen va them chuong
             </Link>
           </div>
         </div>
@@ -199,7 +397,7 @@ export default function Profile() {
           className={`tab ${tab === 'history' ? 'active' : ''}`}
           onClick={() => setTab('history')}
         >
-          Lịch sử đọc ({history.length})
+          Lich su doc ({history.length})
         </button>
         <button
           className={`tab ${tab === 'bookmarks' ? 'active' : ''}`}
@@ -211,14 +409,14 @@ export default function Profile() {
           className={`tab ${tab === 'following' ? 'active' : ''}`}
           onClick={() => setTab('following')}
         >
-          Theo dõi ({followedStories.length})
+          Theo doi ({followedStories.length})
         </button>
       </div>
 
-      {loading ? (
+      {pageLoading ? (
         <div className="loading">
           <div className="spinner" />
-          Đang tải...
+          Dang tai...
         </div>
       ) : (
         <>
@@ -226,24 +424,44 @@ export default function Profile() {
             <div>
               {history.length > 0 ? (
                 <div className="story-grid">
-                  {history.map((h) => {
-                    const story = storyCache[h.storyId] || {};
-                    const chapter = h.chapterId ? chapterCache[h.chapterId] : null;
-                    const actionLink = h.chapterId
-                      ? `/story/${h.storyId}/chapter/${h.chapterId}`
-                      : `/story/${h.storyId}`;
+                  {history.map((item) => {
+                    const story = storyCache[item.storyId];
+                    const chapter = item.chapterId ? chapterCache[item.chapterId] : null;
+                    const hasStory = Boolean(story?.id);
+
                     return (
                       <LibraryStoryCard
-                        key={h.id}
-                        story={story}
-                        chapter={chapter}
-                        timestampLabel={`Đọc lần cuối ${formatTimeAgo(h.lastReadAt)}`}
-                        actionHref={actionLink}
-                        actionLabel={
-                          chapter ? `Tiếp tục Ch.${chapter?.chapterNumber || ''}` : 'Tiếp tục đọc'
+                        key={item.id}
+                        story={
+                          story || {
+                            id: '',
+                            title: 'Truyen khong con kha dung',
+                            coverImage: '',
+                            type: null,
+                            views: null,
+                            averageRating: null,
+                          }
                         }
-                        onDelete={() => handleDeleteHistory(h.id)}
-                        deleteLabel="Xóa lịch sử"
+                        chapter={chapter}
+                        timestampLabel={`Doc lan cuoi ${formatTimeAgo(item.lastReadAt)}`}
+                        actionHref={
+                          hasStory
+                            ? chapter?.id
+                              ? `/story/${story.id}/chapter/${chapter.id}`
+                              : `/story/${story.id}`
+                            : '#'
+                        }
+                        actionLabel={
+                          hasStory
+                            ? chapter?.chapterNumber
+                              ? `Doc tiep Ch.${chapter.chapterNumber}`
+                              : 'Doc tiep'
+                            : 'Khong kha dung'
+                        }
+                        actionDisabled={!hasStory}
+                        statusLabel={!hasStory ? 'Khong con truy cap' : ''}
+                        onDelete={() => handleDeleteHistory(item.id)}
+                        deleteLabel="Xoa lich su"
                       />
                     );
                   })}
@@ -251,7 +469,7 @@ export default function Profile() {
               ) : (
                 <div className="card">
                   <div className="empty-state">
-                    <p>Chưa có lịch sử đọc.</p>
+                    <p>Chua co lich su doc.</p>
                   </div>
                 </div>
               )}
@@ -261,24 +479,27 @@ export default function Profile() {
           {tab === 'bookmarks' && (
             <div>
               {bookmarks.length > 0 ? (
-                <div className="story-grid">
-                  {bookmarks.map((b) => {
-                    const story = storyCache[b.storyId] || {};
-                    const chapter = b.chapterId ? chapterCache[b.chapterId] : null;
-                    const actionLink = b.chapterId
-                      ? `/story/${b.storyId}/chapter/${b.chapterId}`
-                      : `/story/${b.storyId}`;
+                <div className="bookmark-list">
+                  {bookmarks.map((bookmark) => {
+                    const action = getBookmarkProfileAction(bookmark);
+
                     return (
-                      <LibraryStoryCard
-                        key={b.id}
-                        story={story}
-                        chapter={chapter}
-                        note={b.note}
-                        timestampLabel={`Đánh dấu ${formatTimeAgo(b.createdAt)}`}
-                        actionHref={actionLink}
-                        actionLabel="Đọc ngay"
-                        onDelete={() => handleDeleteBookmark(b.id)}
-                        deleteLabel="Gỡ bookmark"
+                      <BookmarkLibraryItem
+                        key={bookmark.id}
+                        bookmark={bookmark}
+                        story={buildBookmarkStory(bookmark)}
+                        chapterLabel={getBookmarkChapterLabel(bookmark)}
+                        positionLabel={getBookmarkPositionLabel(bookmark)}
+                        note={getBookmarkNote(bookmark)}
+                        timestampLabel={`Da luu ${formatTimeAgo(bookmark.createdAt)}`}
+                        action={action}
+                        onDelete={() => handleDeleteBookmark(bookmark)}
+                        deleteDisabled={isBookmarkProcessing(
+                          bookmark.storyId,
+                          bookmark.chapterId,
+                          bookmark.pageIndex,
+                          bookmark.paragraphIndex,
+                        )}
                       />
                     );
                   })}
@@ -286,7 +507,7 @@ export default function Profile() {
               ) : (
                 <div className="card">
                   <div className="empty-state">
-                    <p>Chưa có bookmark nào.</p>
+                    <p>Chua co bookmark nao.</p>
                   </div>
                 </div>
               )}
@@ -307,7 +528,7 @@ export default function Profile() {
             ) : (
               <div className="card">
                 <div className="empty-state">
-                  <p>Chưa theo dõi truyện nào.</p>
+                  <p>Chua theo doi truyen nao.</p>
                 </div>
               </div>
             ))}
@@ -335,7 +556,7 @@ function FollowedStoryCard({ story, chapters }) {
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            '📚'
+            'Truyen'
           )}
         </div>
         <div className="story-info">
@@ -348,11 +569,13 @@ function FollowedStoryCard({ story, chapters }) {
                 fontSize: '0.65rem',
                 fontWeight: 700,
                 background:
-                  story.type === 'MANGA' ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
+                  story.type === 'MANGA'
+                    ? 'var(--badge-manga-bg)'
+                    : 'var(--badge-novel-bg)',
                 color: story.type === 'MANGA' ? 'var(--warning)' : 'var(--accent)',
               }}
             >
-              {story.type === 'MANGA' ? '🎨 Manga' : '📖 Novel'}
+              {story.type === 'MANGA' ? 'Manga' : 'Novel'}
             </span>
             <span>Views {story.views || 0}</span>
             <span>Rating {story.averageRating || 0}</span>
@@ -367,17 +590,17 @@ function FollowedStoryCard({ story, chapters }) {
 
       {chapters.length > 0 && (
         <div className="story-card-chapters">
-          {chapters.map((ch) => {
-            const isRead = readChapters.includes(ch.id);
+          {chapters.map((chapter) => {
+            const isRead = readChapters.includes(chapter.id);
             return (
               <Link
-                key={ch.id}
-                to={`/story/${story.id}/chapter/${ch.id}`}
+                key={chapter.id}
+                to={`/story/${story.id}/chapter/${chapter.id}`}
                 className={`story-card-chapter ${isRead ? 'read' : 'unread'}`}
-                title={`Ch.${ch.chapterNumber}: ${ch.title}`}
+                title={`Ch.${chapter.chapterNumber}: ${chapter.title}`}
               >
-                <span className="ch-name">Ch.{ch.chapterNumber}</span>
-                <span className="ch-time">{formatTimeAgo(ch.createdAt)}</span>
+                <span className="ch-name">Ch.{chapter.chapterNumber}</span>
+                <span className="ch-time">{formatTimeAgo(chapter.createdAt)}</span>
               </Link>
             );
           })}
@@ -387,12 +610,14 @@ function FollowedStoryCard({ story, chapters }) {
       <div className="story-card-footer">
         <div className="story-footer-left">
           {recentChapter && (
-            <span className="muted">Cập nhật {formatTimeAgo(recentChapter.createdAt)}</span>
+            <span className="muted">
+              Cap nhat {formatTimeAgo(recentChapter.createdAt)}
+            </span>
           )}
         </div>
         <div className="story-actions">
           <Link to={actionHref} className="btn btn-sm btn-primary">
-            {recentChapter ? `Đọc Ch.${recentChapter.chapterNumber}` : 'Xem truyện'}
+            {recentChapter ? `Doc Ch.${recentChapter.chapterNumber}` : 'Xem truyen'}
           </Link>
         </div>
       </div>
@@ -403,70 +628,217 @@ function FollowedStoryCard({ story, chapters }) {
 function LibraryStoryCard({
   story,
   chapter,
+  detailLabel,
   actionHref,
   actionLabel,
+  actionDisabled = false,
   timestampLabel,
   note,
+  statusLabel,
+  showBookmarkBadge = false,
   onDelete,
   deleteLabel,
+  deleteDisabled = false,
 }) {
   const isManga = story?.type === 'MANGA';
+  const hasStory = Boolean(story?.id);
+  const hasMeta =
+    Boolean(story?.type) ||
+    typeof story?.views === 'number' ||
+    typeof story?.averageRating === 'number';
+
   return (
     <div className="story-card">
       <Link
-        to={story?.id ? `/story/${story.id}` : '#'}
+        to={hasStory ? `/story/${story.id}` : '#'}
+        onClick={(event) => {
+          if (!hasStory) {
+            event.preventDefault();
+          }
+        }}
         style={{ textDecoration: 'none', color: 'inherit' }}
       >
         <div className="story-cover">
+          {showBookmarkBadge && (
+            <span className="story-bookmark-badge" aria-hidden="true">
+              <BookmarkIcon filled className="story-bookmark-badge-icon" />
+            </span>
+          )}
           {story?.coverImage ? (
             <img
               src={story.coverImage}
-              alt={story?.title || 'Truyện'}
+              alt={story?.title || 'Truyen'}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            'Không có ảnh'
+            'Bookmark'
           )}
         </div>
         <div className="story-info">
-          <h3>{story?.title || 'Truyện không tồn tại'}</h3>
-          <div className="story-meta">
-            <span
-              style={{
-                padding: '0.15rem 0.4rem',
-                borderRadius: '4px',
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                background: isManga ? 'var(--badge-manga-bg)' : 'var(--badge-novel-bg)',
-                color: isManga ? 'var(--warning)' : 'var(--accent)',
-              }}
-            >
-              {isManga ? '[Manga]' : '[Novel]'}
-            </span>
-            <span>Views {story?.views || 0}</span>
-            <span>Rating {story?.averageRating || 0}</span>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+              alignItems: 'flex-start',
+            }}
+          >
+            <h3>{story?.title || 'Truyen khong con kha dung'}</h3>
+            {statusLabel && <span className="story-library-state">{statusLabel}</span>}
           </div>
-          {chapter && (
+
+          {hasMeta && (
+            <div className="story-meta">
+              {story?.type && (
+                <span
+                  style={{
+                    padding: '0.15rem 0.4rem',
+                    borderRadius: '4px',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    background: isManga
+                      ? 'var(--badge-manga-bg)'
+                      : 'var(--badge-novel-bg)',
+                    color: isManga ? 'var(--warning)' : 'var(--accent)',
+                  }}
+                >
+                  {isManga ? 'Manga' : 'Novel'}
+                </span>
+              )}
+              {typeof story?.views === 'number' && <span>Views {story.views}</span>}
+              {typeof story?.averageRating === 'number' && (
+                <span>Rating {story.averageRating}</span>
+              )}
+            </div>
+          )}
+
+          {detailLabel ? (
+            <div className="story-meta" style={{ marginTop: 6, fontSize: '0.82rem' }}>
+              <strong>{detailLabel}</strong>
+            </div>
+          ) : chapter && (
             <div className="story-meta" style={{ marginTop: 6, fontSize: '0.82rem' }}>
               <strong>Ch.{chapter.chapterNumber}</strong> - {chapter.title}
             </div>
           )}
+
           {note && <div className="story-note">{note}</div>}
         </div>
       </Link>
+
       <div className="story-card-footer">
         <div className="story-footer-left">
           {timestampLabel && <span className="muted">{timestampLabel}</span>}
         </div>
         <div className="story-actions">
-          <Link to={actionHref} className="btn btn-sm btn-primary">
-            {actionLabel}
-          </Link>
-          <button className="btn btn-sm btn-outline" onClick={onDelete}>
+          {actionDisabled ? (
+            <span className="btn btn-sm btn-outline btn-disabled">{actionLabel}</span>
+          ) : (
+            <Link to={actionHref} className="btn btn-sm btn-primary">
+              {actionLabel}
+            </Link>
+          )}
+          <button
+            className="btn btn-sm btn-outline"
+            onClick={onDelete}
+            disabled={deleteDisabled}
+          >
             {deleteLabel}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function BookmarkLibraryItem({
+  bookmark,
+  story,
+  chapterLabel,
+  positionLabel,
+  note,
+  timestampLabel,
+  action,
+  onDelete,
+  deleteDisabled = false,
+}) {
+  const hasStory = Boolean(story?.id);
+  const isManga = story?.type === 'MANGA';
+  const typeLabel = story?.type ? (isManga ? 'Manga' : 'Novel') : '';
+  const storyHref = hasStory ? `/story/${story.id}` : '#';
+  const chapterUnavailable = Boolean(bookmark?.chapterId && !bookmark?.chapter?.id);
+
+  return (
+    <article className="bookmark-item">
+      <Link
+        to={storyHref}
+        className={`bookmark-cover-link ${hasStory ? '' : 'disabled'}`.trim()}
+        onClick={(event) => {
+          if (!hasStory) {
+            event.preventDefault();
+          }
+        }}
+      >
+        <div className="bookmark-cover-thumb">
+          <span className="bookmark-cover-badge" aria-hidden="true">
+            <BookmarkIcon filled className="story-bookmark-badge-icon" />
+          </span>
+          {story?.coverImage ? (
+            <img src={story.coverImage} alt={story?.title || 'Bookmark'} />
+          ) : (
+            <div className="bookmark-cover-fallback">{isManga ? 'M' : 'B'}</div>
+          )}
+        </div>
+      </Link>
+
+      <div className="bookmark-main">
+        <div className="bookmark-body">
+          <div className="bookmark-title-row">
+            <BookmarkIcon filled className="story-detail-bookmark-icon" />
+            {hasStory ? (
+              <Link to={storyHref} className="bookmark-title">
+                {story.title}
+              </Link>
+            ) : (
+              <span className="bookmark-title bookmark-title-muted">{story.title}</span>
+            )}
+          </div>
+
+          <div className="bookmark-chip-row">
+            {chapterLabel && <span className="bookmark-chip">{chapterLabel}</span>}
+            {positionLabel && (
+              <span className="bookmark-chip bookmark-chip-position">{positionLabel}</span>
+            )}
+            {typeLabel && <span className="bookmark-chip bookmark-chip-type">{typeLabel}</span>}
+          </div>
+
+          {note && <p className="bookmark-note">{note}</p>}
+
+          <div className="bookmark-meta-row">
+            {timestampLabel && <span>{timestampLabel}</span>}
+            {chapterUnavailable && <span>Khong con truy cap chuong da bookmark</span>}
+            {!bookmark?.story && <span>Truyen nay khong con kha dung</span>}
+          </div>
+        </div>
+
+        <div className="bookmark-action-row">
+          {action?.disabled ? (
+            <span className="btn btn-sm btn-outline btn-disabled">{action.label}</span>
+          ) : (
+            <Link to={action.href} className="btn btn-sm btn-outline">
+              {action.label}
+            </Link>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm btn-danger"
+            onClick={onDelete}
+            disabled={deleteDisabled}
+          >
+            Xoa
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }

@@ -1,7 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import BookmarkIcon from '../components/BookmarkIcon';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import useBookmarks, { getBookmarkLocation } from '../hooks/useBookmarks';
 import {
   createComment,
   getChapter,
@@ -14,15 +16,52 @@ import {
 
 const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
 
+function splitChapterContentIntoParagraphs(content) {
+  if (!content) {
+    return [];
+  }
+
+  const normalized = content.replace(/\r\n/g, '\n').trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const blocks = normalized
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (blocks.length > 0) {
+    return blocks;
+  }
+
+  return normalized
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function buildParagraphSnippet(paragraph) {
+  const normalized = (paragraph || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= 140) {
+    return normalized;
+  }
+  return `${normalized.slice(0, 140)}...`;
+}
+
 function MangaPageWithComments({
   page,
   idx,
   storyId,
   chapterId,
   user,
+  pageRef,
+  bookmarked = false,
+  bookmarkBusy = false,
   initialComments = [],
   showCommentToggle = true,
   onPageCommentsChange,
+  onToggleBookmark,
 }) {
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState(initialComments);
@@ -124,7 +163,20 @@ function MangaPageWithComments({
       lineHeight: 0,
       transition: 'gap 0.3s ease',
     }}>
-      <div className="manga-page-media" style={{ position: 'relative', flex: '1 1 0', minWidth: 0, width: '100%', maxWidth: '900px', margin: 0, padding: 0 }}>
+      <div
+        className="manga-page-media"
+        ref={pageRef}
+        style={{
+          position: 'relative',
+          flex: '1 1 0',
+          minWidth: 0,
+          width: '100%',
+          maxWidth: '900px',
+          margin: 0,
+          padding: 0,
+          scrollMarginTop: 'calc(var(--header-height, 64px) + 20px)',
+        }}
+      >
         <img
           src={page}
           alt={`Trang ${idx + 1}`}
@@ -141,6 +193,42 @@ function MangaPageWithComments({
           loading="lazy"
           onError={(e) => { e.target.style.display = 'none'; }}
         />
+
+        <button
+          type="button"
+          className="manga-page-bookmark-toggle"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleBookmark?.(idx);
+          }}
+          title={bookmarked ? `Bo bookmark trang ${idx + 1}` : `Bookmark trang ${idx + 1}`}
+          aria-pressed={bookmarked}
+          disabled={bookmarkBusy}
+          style={{
+            position: 'absolute',
+            left: '12px',
+            bottom: '12px',
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            background: bookmarked
+              ? 'linear-gradient(135deg, var(--accent), var(--warning))'
+              : 'rgba(15, 23, 42, 0.82)',
+            color: '#fff',
+            cursor: bookmarkBusy ? 'wait' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: bookmarked
+              ? '0 0 18px rgba(108, 99, 255, 0.35)'
+              : '0 8px 24px rgba(15, 23, 42, 0.35)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease',
+            zIndex: 10,
+          }}
+        >
+          <BookmarkIcon filled={bookmarked} className="story-bookmark-icon" />
+        </button>
 
         {showCommentToggle && (
         <button
@@ -321,9 +409,11 @@ function MangaPageWithComments({
 
 export default function ChapterReader() {
   const { storyId, chapterId } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { themeKey } = useTheme();
+  const { getStoryBookmark, isBookmarked, isProcessing, toggleBookmark } = useBookmarks(user);
 
   const [story, setStory] = useState(null);
   const [chapter, setChapter] = useState(null);
@@ -351,6 +441,8 @@ export default function ChapterReader() {
   const [textColor, setTextColor] = useState('');
   const [lineHeight, setLineHeight] = useState(1.8);
   const [showSettings, setShowSettings] = useState(false);
+  const mangaPageRefs = useRef({});
+  const paragraphRefs = useRef({});
 
   useEffect(() => {
     loadChapter();
@@ -408,6 +500,17 @@ export default function ChapterReader() {
   const prevChapter = currentIndex > 0 ? chapters[currentIndex - 1] : null;
   const nextChapter = currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null;
   const isManga = story?.type === 'MANGA';
+  const paragraphBlocks = useMemo(
+    () => (isManga ? [] : splitChapterContentIntoParagraphs(chapter?.content)),
+    [chapter?.content, isManga],
+  );
+  const targetPageIndex = Number.parseInt(searchParams.get('page') || '', 10);
+  const targetParagraphIndex = Number.parseInt(searchParams.get('paragraph') || '', 10);
+  const bookmarkTargetPage = Number.isInteger(targetPageIndex) ? targetPageIndex - 1 : null;
+  const bookmarkTargetParagraph = Number.isInteger(targetParagraphIndex)
+    ? targetParagraphIndex - 1
+    : null;
+  const currentStoryBookmark = getStoryBookmark(storyId);
   const readerTopOffset = 'var(--header-height, 64px)';
   const chapterComments = comments.filter((comment) => comment.chapterId === chapterId);
   const pageCommentsByIndex = {};
@@ -418,6 +521,107 @@ export default function ChapterReader() {
     }
   });
   const visibleComments = chapterComments.filter((comment) => comment.pageIndex === null || comment.pageIndex === undefined);
+
+  const goToBookmark = (bookmark) => {
+    if (!bookmark?.storyId || !bookmark?.chapterId) {
+      return;
+    }
+
+    const { pageIndex, paragraphIndex } = getBookmarkLocation(bookmark);
+    const nextSearchParams = new URLSearchParams();
+    if (typeof pageIndex === 'number') {
+      nextSearchParams.set('page', String(pageIndex + 1));
+    }
+    if (typeof paragraphIndex === 'number') {
+      nextSearchParams.set('paragraph', String(paragraphIndex + 1));
+    }
+
+    const suffix = nextSearchParams.toString();
+    navigate(
+      `/story/${bookmark.storyId}/chapter/${bookmark.chapterId}${suffix ? `?${suffix}` : ''}`,
+    );
+  };
+
+  const handlePageBookmark = async (pageIndex) => {
+    try {
+      const result = await toggleBookmark({
+        storyId,
+        chapterId,
+        pageIndex,
+        note: `Trang ${pageIndex + 1}`,
+      });
+      if (result.requiresAuth) {
+        alert('Vui long dang nhap!');
+      }
+    } catch (error) {
+      alert('Khong cap nhat duoc bookmark.');
+    }
+  };
+
+  const handleParagraphBookmark = async (paragraph, paragraphIndex) => {
+    try {
+      const result = await toggleBookmark({
+        storyId,
+        chapterId,
+        paragraphIndex,
+        textSnippet: buildParagraphSnippet(paragraph),
+        note: `Doan ${paragraphIndex + 1}`,
+      });
+      if (result.requiresAuth) {
+        alert('Vui long dang nhap!');
+      }
+    } catch (error) {
+      alert('Khong cap nhat duoc bookmark.');
+    }
+  };
+
+  const scrollToBookmarkTarget = (targetNode) => {
+    if (!targetNode || typeof window === 'undefined') {
+      return;
+    }
+
+    const rootStyles = getComputedStyle(document.documentElement);
+    const headerHeight = Number.parseInt(
+      rootStyles.getPropertyValue('--header-height') || '64',
+      10,
+    );
+    const topOffset = (Number.isFinite(headerHeight) ? headerHeight : 64) + 20;
+    const targetTop = targetNode.getBoundingClientRect().top + window.scrollY - topOffset;
+
+    window.scrollTo({
+      top: Math.max(targetTop, 0),
+      behavior: 'smooth',
+    });
+  };
+
+  useEffect(() => {
+    if (loading) {
+      return undefined;
+    }
+
+    let targetNode = null;
+    if (isManga && bookmarkTargetPage !== null && bookmarkTargetPage >= 0) {
+      targetNode = mangaPageRefs.current[bookmarkTargetPage] || null;
+    } else if (!isManga && bookmarkTargetParagraph !== null && bookmarkTargetParagraph >= 0) {
+      targetNode = paragraphRefs.current[bookmarkTargetParagraph] || null;
+    }
+
+    if (!targetNode) {
+      return undefined;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      scrollToBookmarkTarget(targetNode);
+    });
+    const retryTimer = window.setTimeout(() => {
+      scrollToBookmarkTarget(targetNode);
+    }, 220);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(retryTimer);
+    };
+  }, [bookmarkTargetPage, bookmarkTargetParagraph, isManga, loading, chapterId]);
 
   const handleComment = async () => {
     if (!user) return alert('Vui long dang nhap!');
@@ -596,6 +800,13 @@ export default function ChapterReader() {
             bottom: 10px !important;
           }
 
+          .manga-page-bookmark-toggle {
+            width: 38px !important;
+            height: 38px !important;
+            left: 10px !important;
+            bottom: 10px !important;
+          }
+
           .page-comment-panel.open {
             max-width: 100% !important;
             width: 100% !important;
@@ -718,6 +929,28 @@ export default function ChapterReader() {
               <option key={ch.id} value={ch.id}>Ch.{ch.chapterNumber}: {ch.title}</option>
             ))}
           </select>
+          {currentStoryBookmark?.chapterId && (
+            <button
+              onClick={() => goToBookmark(currentStoryBookmark)}
+              style={{
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                padding: '0.35rem 0.65rem',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+              title="Mo lai vi tri da bookmark"
+            >
+              <BookmarkIcon filled className="story-detail-bookmark-icon" />
+              Vi tri da luu
+            </button>
+          )}
           {isManga && (
             <button
               onClick={() => setShowPageCommentButtons((value) => !value)}
@@ -821,6 +1054,13 @@ export default function ChapterReader() {
                   storyId={storyId}
                   chapterId={chapterId}
                   user={user}
+                  pageRef={(node) => {
+                    if (node) {
+                      mangaPageRefs.current[idx] = node;
+                    }
+                  }}
+                  bookmarked={isBookmarked(storyId, chapterId, idx, null)}
+                  bookmarkBusy={isProcessing(storyId, chapterId, idx, null)}
                   initialComments={pageCommentsCache[idx] || pageCommentsByIndex[idx] || []}
                   showCommentToggle={showPageCommentButtons}
                   onPageCommentsChange={(pageIdx, nextComments) => {
@@ -829,6 +1069,7 @@ export default function ChapterReader() {
                       [pageIdx]: nextComments,
                     }));
                   }}
+                  onToggleBookmark={handlePageBookmark}
                 />
               ))
             ) : (
@@ -844,7 +1085,6 @@ export default function ChapterReader() {
             fontFamily,
             color: textColor,
             lineHeight,
-            whiteSpace: 'pre-wrap',
             textAlign: 'justify',
             padding: '1.5rem',
             background: bgColor,
@@ -852,7 +1092,71 @@ export default function ChapterReader() {
             border: '1px solid var(--border)',
             boxShadow: 'var(--shadow)',
           }}>
-            {chapter.content || 'Chuong nay chua co noi dung.'}
+            {paragraphBlocks.length > 0 ? (
+              paragraphBlocks.map((paragraph, paragraphIndex) => {
+                const bookmarked = isBookmarked(
+                  storyId,
+                  chapterId,
+                  null,
+                  paragraphIndex,
+                );
+                return (
+                  <div
+                    key={`${chapterId}-paragraph-${paragraphIndex}`}
+                    ref={(node) => {
+                      if (node) {
+                        paragraphRefs.current[paragraphIndex] = node;
+                      }
+                    }}
+                    style={{
+                      position: 'relative',
+                      paddingRight: '3rem',
+                      marginBottom: '1.35rem',
+                      scrollMarginTop: 'calc(var(--header-height, 64px) + 32px)',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className={`story-bookmark-btn ${bookmarked ? 'active' : ''}`}
+                      aria-pressed={bookmarked}
+                      title={bookmarked ? `Bo bookmark doan ${paragraphIndex + 1}` : `Bookmark doan ${paragraphIndex + 1}`}
+                      disabled={isProcessing(storyId, chapterId, null, paragraphIndex)}
+                      style={{
+                        top: '0.1rem',
+                        right: '0',
+                        width: '34px',
+                        height: '34px',
+                      }}
+                      onClick={() => handleParagraphBookmark(paragraph, paragraphIndex)}
+                    >
+                      <BookmarkIcon filled={bookmarked} className="story-bookmark-icon" />
+                    </button>
+                    <p
+                      style={{
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {paragraph}
+                    </p>
+                    {bookmarked && (
+                      <div
+                        style={{
+                          marginTop: '0.35rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--accent)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Da luu doan {paragraphIndex + 1}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              'Chuong nay chua co noi dung.'
+            )}
           </div>
         )}
       </div>
