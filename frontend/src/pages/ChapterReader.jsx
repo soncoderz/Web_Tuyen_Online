@@ -570,6 +570,7 @@ export default function ChapterReader() {
     : null;
   const currentStoryBookmark = getStoryBookmark(storyId);
   const readerTopOffset = 'var(--header-height, 64px)';
+  const chapterSummary = (chapter?.summary || '').trim();
   const chapterComments = comments.filter((comment) => comment.chapterId === chapterId);
   const pageCommentsByIndex = {};
   chapterComments.forEach((comment) => {
@@ -1131,6 +1132,50 @@ export default function ChapterReader() {
           color: isManga ? 'var(--warning)' : 'var(--accent)',
         }}>{isManga ? 'Truyen Tranh' : 'Light Novel'}</span>
       </div>
+
+      {chapterSummary && (
+        <div style={{ maxWidth: isManga ? '900px' : '750px', margin: '0 auto', padding: '0 1rem 1rem' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.88))',
+            color: '#fff',
+            borderRadius: '18px',
+            border: '1px solid rgba(148, 163, 184, 0.2)',
+            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.22)',
+            padding: '1rem 1.1rem',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '0.75rem',
+              flexWrap: 'wrap',
+              marginBottom: '0.55rem',
+            }}>
+              <strong style={{ fontSize: '0.95rem', letterSpacing: '0.02em' }}>Tom tat noi dung</strong>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                padding: '0.2rem 0.55rem',
+                borderRadius: '999px',
+                background: isManga ? 'rgba(251, 191, 36, 0.18)' : 'rgba(96, 165, 250, 0.18)',
+                color: isManga ? '#fcd34d' : '#93c5fd',
+              }}>
+                Chapter Summary
+              </span>
+            </div>
+            <p style={{
+              margin: 0,
+              lineHeight: 1.75,
+              fontSize: '0.96rem',
+              color: 'rgba(255, 255, 255, 0.92)',
+              whiteSpace: 'pre-wrap',
+            }}>
+              {chapterSummary}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className={`chapter-reader-content ${isManga ? 'chapter-reader-content--manga' : ''}`} style={{ maxWidth: isManga ? '900px' : '750px', margin: '0 auto', padding: isManga ? '0' : '1rem' }}>

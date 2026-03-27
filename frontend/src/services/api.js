@@ -11,6 +11,8 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+export const AUTH_SESSION_INVALIDATED_EVENT = "auth:session-invalidated";
+
 const MAX_SINGLE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_MANGA_UPLOAD_BATCH_FILES = 8;
 const MAX_MANGA_UPLOAD_BATCH_BYTES = 20 * 1024 * 1024;
@@ -27,9 +29,25 @@ const getStoredUser = () => {
   }
 };
 
-api.interceptors.request.use((config) => {
+const getStoredAccessToken = () => {
   const user = getStoredUser();
-  const accessToken = user?.accessToken || user?.token;
+  return user?.accessToken || user?.token || null;
+};
+
+const clearStoredUserSession = () => {
+  try {
+    localStorage.removeItem("user");
+  } catch (error) {
+    console.error("Unable to clear stored user session:", error);
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(AUTH_SESSION_INVALIDATED_EVENT));
+  }
+};
+
+api.interceptors.request.use((config) => {
+  const accessToken = getStoredAccessToken();
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -49,9 +67,20 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status;
+    const hadStoredSession = Boolean(getStoredAccessToken());
+
+    if (status === 401 && hadStoredSession && !error.config?.skipSessionInvalidation) {
+      error.sessionExpired = true;
+      clearStoredUserSession();
+    }
+
     // Nếu request được đánh dấu silent, không log lỗi
     if (!error.config?.silent) {
-      console.error('API Error:', error.response?.data?.message || error.message);
+      const message = error.sessionExpired
+        ? "Phien dang nhap da het han. Vui long dang nhap lai."
+        : error.response?.data?.message || error.message;
+      console.error("API Error:", message);
 
     }
     return Promise.reject(error);

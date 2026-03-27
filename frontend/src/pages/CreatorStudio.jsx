@@ -114,7 +114,9 @@ export default function CreatorStudio() {
         setSelectedStoryChapters([]);
       }
     } catch (error) {
-      console.error(error);
+      if (!error?.sessionExpired && error?.response?.status !== 401) {
+        console.error(error);
+      }
     } finally {
       setLoading(false);
     }
@@ -269,6 +271,79 @@ export default function CreatorStudio() {
       } else {
         alert(error.response?.data?.message || error.message);
       }
+    }
+  };
+
+  const handleValidatedSaveChapter = async () => {
+    if (pagesUploading) return;
+
+    const hasAuthToken = Boolean(user?.accessToken || user?.token);
+    const storyId = (chapterForm.storyId || selectedStoryId || "").trim();
+    const chapterNumber = Number(chapterForm.chapterNumber);
+    const title = chapterForm.title.trim();
+
+    if (!hasAuthToken) {
+      alert("Phien dang nhap da het han. Vui long dang nhap lai.");
+      navigate("/login");
+      return;
+    }
+
+    if (!storyId) {
+      alert("Vui long chon truyen truoc khi luu chuong.");
+      return;
+    }
+
+    if (!Number.isFinite(chapterNumber) || chapterNumber <= 0) {
+      alert("So chuong khong hop le.");
+      return;
+    }
+
+    if (!title) {
+      alert("Vui long nhap tieu de chuong.");
+      return;
+    }
+
+    const payload = {
+      ...chapterForm,
+      storyId,
+      chapterNumber,
+      title,
+    };
+
+    if (selectedStoryType === "MANGA") {
+      if (!Array.isArray(payload.pages) || payload.pages.length === 0) {
+        alert("Vui long upload it nhat 1 trang manga truoc khi gui chuong.");
+        return;
+      }
+      payload.content = null;
+    } else {
+      const content = chapterForm.content.trim();
+      if (!content) {
+        alert("Vui long nhap noi dung chuong.");
+        return;
+      }
+      payload.content = content;
+      payload.pages = [];
+    }
+
+    try {
+      if (editChapterId) {
+        await updateChapter(editChapterId, payload);
+      } else {
+        await createChapter(payload);
+      }
+
+      await loadData(payload.storyId);
+      resetChapterForm(payload.storyId);
+      alert("Da luu chuong. Chuong dang cho admin duyet.");
+    } catch (error) {
+      if (error?.sessionExpired || error.response?.status === 401) {
+        alert("Phien dang nhap da het han. Vui long dang nhap lai.");
+        navigate("/login");
+        return;
+      }
+
+      alert(error.response?.data?.message || error.message);
     }
   };
 
@@ -608,7 +683,7 @@ export default function CreatorStudio() {
             <button className="btn btn-outline" onClick={() => resetChapterForm()}>
               Làm mới
             </button>
-            <button className="btn btn-primary" onClick={handleSaveChapter} disabled={pagesUploading}>
+            <button className="btn btn-primary" onClick={handleValidatedSaveChapter} disabled={pagesUploading}>
               {editChapterId ? "Cập nhật chương" : "Gửi chương"}
             </button>
           </div>

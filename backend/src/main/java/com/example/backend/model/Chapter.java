@@ -26,6 +26,8 @@ public class Chapter {
 
     private String content;
 
+    private String summary;
+
     private List<String> pages = new ArrayList<>();
 
     private String uploaderId;
@@ -64,6 +66,9 @@ public class Chapter {
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+
+    public String getSummary() { return summary; }
+    public void setSummary(String summary) { this.summary = summary; }
 
     public String getUploaderId() { return uploaderId; }
     public void setUploaderId(String uploaderId) { this.uploaderId = uploaderId; }

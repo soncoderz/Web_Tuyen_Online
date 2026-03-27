@@ -248,6 +248,7 @@ export default function Profile() {
 
   const loadData = async () => {
     setLoading(true);
+    const silentRequest = { silent: true };
 
     try {
       const [historyRes, followedRes] = await Promise.all([
@@ -267,7 +268,7 @@ export default function Profile() {
 
       const storyResults = await Promise.all(
         storyIds.map((storyId) =>
-          getStory(storyId)
+          getStory(storyId, silentRequest)
             .then((response) => ({ storyId, story: response.data }))
             .catch(() => ({ storyId, story: null })),
         ),
@@ -285,7 +286,7 @@ export default function Profile() {
 
       const chapterResults = await Promise.all(
         chapterIds.map((chapterId) =>
-          getChapter(chapterId)
+          getChapter(chapterId, silentRequest)
             .then((response) => ({ chapterId, chapter: response.data }))
             .catch(() => ({ chapterId, chapter: null })),
         ),
@@ -300,7 +301,7 @@ export default function Profile() {
       if (followedItems.length > 0) {
         const followedChapterResults = await Promise.all(
           followedItems.map((story) =>
-            getChaptersByStory(story.id)
+            getChaptersByStory(story.id, silentRequest)
               .then((response) => ({
                 storyId: story.id,
                 chapters: response.data || [],
@@ -321,7 +322,9 @@ export default function Profile() {
         setChaptersMap({});
       }
     } catch (error) {
-      console.error(error);
+      if (!error?.sessionExpired && error?.response?.status !== 401) {
+        console.error(error);
+      }
     } finally {
       setLoading(false);
     }

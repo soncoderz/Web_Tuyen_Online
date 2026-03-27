@@ -118,7 +118,8 @@ export default function Admin() {
     // Đợi AuthContext load xong trước khi kiểm tra user
     if (authLoading) return;
     
-    if (!user || !isAdmin()) { navigate('/'); return; }
+    if (!user) { navigate('/login'); return; }
+    if (!isAdmin()) { navigate('/'); return; }
     loadData();
   }, [user, authLoading]);
 
@@ -144,7 +145,11 @@ export default function Admin() {
       setStats(statsRes.data); setStories(storiesRes.data); setCategories(catsRes.data);
       setAuthors(authorsRes.data); setReports(reportsRes.data);
       setPendingStories(pendingStoriesRes.data); setPendingChapters(pendingChaptersRes.data);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      if (!e?.sessionExpired && e?.response?.status !== 401) {
+        console.error(e);
+      }
+    }
     setLoading(false);
   };
 
@@ -372,22 +377,135 @@ export default function Admin() {
   const getSelectedStoryType = () => stories.find(s => s.id === (chapterForm.storyId || selectedStoryId))?.type;
 
   const handleSaveChapter = async () => {
-    if (pagesUploading || scanLoading || importingScannedPages) return;
+    if (chapterFormBusy) return;
+
+    const hasAuthToken = Boolean(user?.accessToken || user?.token);
+    const storyId = (chapterForm.storyId || selectedStoryId || '').trim();
+    const chapterNumber = Number(chapterForm.chapterNumber);
+    const title = chapterForm.title.trim();
+    const storyType = getSelectedStoryType();
+
+    if (!hasAuthToken) {
+      alert('Phien dang nhap da het han. Vui long dang nhap lai.');
+      navigate('/login');
+      return;
+    }
+
+    if (!storyId) {
+      alert('Vui long chon truyen truoc khi luu chuong.');
+      return;
+    }
+
+    if (!Number.isFinite(chapterNumber) || chapterNumber <= 0) {
+      alert('So chuong khong hop le.');
+      return;
+    }
+
+    if (!title) {
+      alert('Vui long nhap tieu de chuong.');
+      return;
+    }
 
     try {
-      const formData = { ...chapterForm };
-      if (getSelectedStoryType() === 'MANGA') {
+      const formData = {
+        ...chapterForm,
+        storyId,
+        chapterNumber,
+        title,
+      };
+      if (storyType === 'MANGA') {
+        if (!Array.isArray(formData.pages) || formData.pages.length === 0) {
+          alert('Vui long upload hoac import it nhat 1 trang manga truoc khi luu.');
+          return;
+        }
         formData.content = null;
       } else {
+        const content = chapterForm.content.trim();
+        if (!content) {
+          alert('Vui long nhap noi dung chuong.');
+          return;
+        }
+        formData.content = content;
         formData.pages = [];
       }
       if (editChapterId) await updateChapter(editChapterId, formData);
       else await createChapter(formData);
       closeChapterForm();
-      if (selectedStoryId) await handleLoadChapters(selectedStoryId);
+      if (storyId) await handleLoadChapters(storyId);
       await loadData();
     } catch (e) { alert('Lỗi: ' + (e.response?.data?.message || e.message)); }
   };
+  const handleValidatedSaveChapter = async () => {
+    if (chapterFormBusy) return;
+
+    const hasAuthToken = Boolean(user?.accessToken || user?.token);
+    const storyId = (chapterForm.storyId || selectedStoryId || '').trim();
+    const chapterNumber = Number(chapterForm.chapterNumber);
+    const title = chapterForm.title.trim();
+    const storyType = getSelectedStoryType();
+
+    if (!hasAuthToken) {
+      alert('Phien dang nhap da het han. Vui long dang nhap lai.');
+      navigate('/login');
+      return;
+    }
+
+    if (!storyId) {
+      alert('Vui long chon truyen truoc khi luu chuong.');
+      return;
+    }
+
+    if (!Number.isFinite(chapterNumber) || chapterNumber <= 0) {
+      alert('So chuong khong hop le.');
+      return;
+    }
+
+    if (!title) {
+      alert('Vui long nhap tieu de chuong.');
+      return;
+    }
+
+    const formData = {
+      ...chapterForm,
+      storyId,
+      chapterNumber,
+      title,
+    };
+
+    if (storyType === 'MANGA') {
+      if (!Array.isArray(formData.pages) || formData.pages.length === 0) {
+        alert('Vui long upload hoac import it nhat 1 trang manga truoc khi luu.');
+        return;
+      }
+      formData.content = null;
+    } else {
+      const content = chapterForm.content.trim();
+      if (!content) {
+        alert('Vui long nhap noi dung chuong.');
+        return;
+      }
+      formData.content = content;
+      formData.pages = [];
+    }
+
+    try {
+      if (editChapterId) await updateChapter(editChapterId, formData);
+      else await createChapter(formData);
+
+      closeChapterForm();
+      if (storyId) await handleLoadChapters(storyId);
+      await loadData();
+    } catch (e) {
+      if (e?.sessionExpired || e?.response?.status === 401) {
+        alert('Phien dang nhap da het han. Vui long dang nhap lai.');
+        navigate('/login');
+        return;
+      }
+
+      alert('Loi: ' + (e.response?.data?.message || e.message));
+    }
+  };
+
   const handleDeleteChapter = async (id) => {
     if (confirm('Xóa?')) { await deleteChapter(id); if (selectedStoryId) handleLoadChapters(selectedStoryId); }
   };
@@ -1018,7 +1136,7 @@ export default function Admin() {
 
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => setShowChapterForm(false)}>Hủy</button>
-              <button className="btn btn-primary" onClick={handleSaveChapter} disabled={pagesUploading}>Lưu</button>
+              <button className="btn btn-primary" onClick={handleValidatedSaveChapter} disabled={chapterFormBusy}>Lưu</button>
             </div>
           </div>
         </div>

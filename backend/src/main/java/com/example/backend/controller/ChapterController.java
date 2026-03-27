@@ -41,6 +41,7 @@ import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.StoryRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.services.UserDetailsImpl;
+import com.example.backend.service.ChapterSummaryService;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -61,6 +62,9 @@ public class ChapterController {
 
     @Autowired
     MongoTemplate mongoTemplate;
+
+    @Autowired
+    ChapterSummaryService chapterSummaryService;
 
     @GetMapping("/story/{storyId}")
     public ResponseEntity<List<Chapter>> getChaptersByStory(@PathVariable String storyId) {
@@ -148,6 +152,17 @@ public class ChapterController {
                     .body(new MessageResponse("Error: Chapter not found!"));
         }
 
+        String storedSummary = chapter.getSummary();
+        String displaySummary = chapterSummaryService.buildDisplaySummary(story, chapter);
+        chapter.setSummary(displaySummary);
+
+        if ((storedSummary == null || storedSummary.isBlank())
+                && displaySummary != null
+                && !displaySummary.isBlank()) {
+            chapter.setUpdatedAt(new Date());
+            chapterRepository.save(chapter);
+        }
+
         return ResponseEntity.ok(chapter);
     }
 
@@ -178,6 +193,7 @@ public class ChapterController {
         Chapter chapter = new Chapter(request.getStoryId(), request.getChapterNumber(),
                 request.getTitle(), request.getContent());
         chapter.setPages(request.getPages() != null ? new ArrayList<>(request.getPages()) : new ArrayList<>());
+        chapter.setSummary(chapterSummaryService.generateSummary(story, chapter));
         chapter.setUploaderId(currentUser.getId());
         chapter.setUploaderUsername(currentUser.getUsername());
         chapter.setCreatedAt(new Date());
@@ -231,6 +247,7 @@ public class ChapterController {
         chapter.setContent(request.getContent());
         chapter.setChapterNumber(request.getChapterNumber());
         chapter.setPages(request.getPages() != null ? new ArrayList<>(request.getPages()) : new ArrayList<>());
+        chapter.setSummary(chapterSummaryService.generateSummary(story, chapter));
         chapter.setUpdatedAt(new Date());
 
         if (admin) {
