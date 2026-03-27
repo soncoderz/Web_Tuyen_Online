@@ -39,6 +39,8 @@ public class User {
 
     private String avatar;
 
+    private Long walletBalance = 0L;
+
     private List<String> followedStoryIds = new ArrayList<>();
 
     private String resetToken;
@@ -73,6 +75,9 @@ public class User {
 
     public String getAvatar() { return avatar; }
     public void setAvatar(String avatar) { this.avatar = avatar; }
+
+    public Long getWalletBalance() { return walletBalance; }
+    public void setWalletBalance(Long walletBalance) { this.walletBalance = walletBalance; }
 
     public List<String> getFollowedStoryIds() { return followedStoryIds; }
     public void setFollowedStoryIds(List<String> followedStoryIds) { this.followedStoryIds = followedStoryIds; }

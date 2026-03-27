@@ -10,6 +10,7 @@ public class JwtResponse {
     private String email;
     private List<String> roles;
     private String avatar;
+    private Long walletBalance;
 
     public JwtResponse(String accessToken, String id, String username, String email, List<String> roles) {
         this.token = accessToken;
@@ -19,13 +20,14 @@ public class JwtResponse {
         this.roles = roles;
     }
 
-    public JwtResponse(String accessToken, String id, String username, String email, List<String> roles, String avatar) {
+    public JwtResponse(String accessToken, String id, String username, String email, List<String> roles, String avatar, Long walletBalance) {
         this.token = accessToken;
         this.id = id;
         this.username = username;
         this.email = email;
         this.roles = roles;
         this.avatar = avatar;
+        this.walletBalance = walletBalance;
     }
 
     public String getAccessToken() {
@@ -78,5 +80,13 @@ public class JwtResponse {
 
     public void setAvatar(String avatar) {
         this.avatar = avatar;
+    }
+
+    public Long getWalletBalance() {
+        return walletBalance;
+    }
+
+    public void setWalletBalance(Long walletBalance) {
+        this.walletBalance = walletBalance;
     }
 }

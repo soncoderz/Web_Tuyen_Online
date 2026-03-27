@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
     private String frontendUrl;
+    private String backendUrl;
 
     public String getFrontendUrl() {
         return frontendUrl;
@@ -14,5 +15,13 @@ public class AppProperties {
 
     public void setFrontendUrl(String frontendUrl) {
         this.frontendUrl = frontendUrl;
+    }
+
+    public String getBackendUrl() {
+        return backendUrl;
+    }
+
+    public void setBackendUrl(String backendUrl) {
+        this.backendUrl = backendUrl;
     }
 }

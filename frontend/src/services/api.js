@@ -120,6 +120,11 @@ export const updateChapter = (id, data) => api.put(`/chapters/${id}`, data);
 export const reviewChapter = (id, approvalStatus, reviewNote = "") =>
   api.put(`/chapters/${id}/approval`, { approvalStatus, reviewNote });
 export const deleteChapter = (id) => api.delete(`/chapters/${id}`);
+export const getWallet = () => api.get("/payments/wallet");
+export const topUpWallet = (amount) => api.post("/payments/wallet/top-up", { amount });
+export const getTopUpStatus = (orderId) =>
+  api.get("/payments/wallet/top-up/status", { params: { orderId } });
+export const purchaseChapter = (chapterId) => api.post(`/payments/chapters/${chapterId}/purchase`);
 
 // Comments
 export const getCommentsByStory = (storyId) =>

@@ -45,6 +45,8 @@ const emptyChapterForm = {
   title: "",
   content: "",
   pages: [],
+  isPaid: false,
+  price: 0,
 };
 
 const approvalOf = (item) => item?.approvalStatus || "APPROVED";
@@ -279,6 +281,8 @@ export default function CreatorStudio() {
       title: chapter.title || "",
       content: chapter.content || "",
       pages: chapter.pages || [],
+      isPaid: Boolean(chapter.isPaid),
+      price: chapter.price || 0,
     });
     setEditChapterId(chapter.id);
     setUploadProgress("");
@@ -531,6 +535,38 @@ export default function CreatorStudio() {
               value={chapterForm.title}
               onChange={(event) => setChapterForm({ ...chapterForm, title: event.target.value })}
             />
+          </div>
+          <div
+            className="form-group"
+            style={{ display: "grid", gridTemplateColumns: "1fr 170px", gap: "0.75rem", alignItems: "end" }}
+          >
+            <label style={{ margin: 0 }}>
+              <div style={{ marginBottom: "0.45rem" }}>Giá mở khóa</div>
+              <input
+                className="form-control"
+                type="number"
+                min="0"
+                disabled={!chapterForm.isPaid}
+                value={chapterForm.price}
+                onChange={(event) =>
+                  setChapterForm({ ...chapterForm, price: Math.max(0, Number(event.target.value) || 0) })
+                }
+              />
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
+              <input
+                type="checkbox"
+                checked={chapterForm.isPaid}
+                onChange={(event) =>
+                  setChapterForm({
+                    ...chapterForm,
+                    isPaid: event.target.checked,
+                    price: event.target.checked ? Math.max(1000, Number(chapterForm.price) || 0) : 0,
+                  })
+                }
+              />
+              Chương trả phí
+            </label>
           </div>
 
           {selectedStoryType === "MANGA" ? (

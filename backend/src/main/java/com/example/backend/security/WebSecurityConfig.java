@@ -90,6 +90,7 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(auth ->
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/payments/momo/ipn").permitAll()
                         .requestMatchers("/api/test/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/stories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/chapters/**").permitAll()

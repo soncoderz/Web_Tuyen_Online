@@ -96,7 +96,8 @@ public class AuthController {
                 userDetails.getUsername(),
                 userDetails.getEmail(),
                 roles,
-                avatar));
+                avatar,
+                dbUser != null ? dbUser.getWalletBalance() : 0L));
     }
 
     @PostMapping("/signup")
@@ -232,7 +233,8 @@ public class AuthController {
                     userDetails.getUsername(),
                     userDetails.getEmail(),
                     roles,
-                    user.getAvatar()));
+                    user.getAvatar(),
+                    user.getWalletBalance()));
 
         } catch (Exception e) {
             return ResponseEntity.badRequest()

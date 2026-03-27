@@ -6,7 +6,7 @@ import useBookmarks, { getBookmarkLocation } from '../hooks/useBookmarks';
 import {
   getStory, getChaptersByStory, getCommentsByStory, getStoryRating, getUserRating,
   incrementViews, followStory, isFollowing, createComment, rateStory,
-  createReport, getRelatedStories
+  createReport, getRelatedStories, topUpWallet, purchaseChapter
 } from '../services/api';
 
 const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
@@ -14,7 +14,7 @@ const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
 export default function StoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { getStoryBookmark } = useBookmarks(user);
   const [story, setStory] = useState(null);
   const [chapters, setChapters] = useState([]);
@@ -37,6 +37,9 @@ export default function StoryDetail() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState('chapters');
+  const [walletAmount, setWalletAmount] = useState(50000);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [purchaseBusyId, setPurchaseBusyId] = useState(null);
 
   useEffect(() => {
     loadStory();
@@ -140,6 +143,44 @@ export default function StoryDetail() {
     }
     const suffix = params.toString() ? `?${params.toString()}` : '';
     navigate(`/story/${bookmark.storyId}/chapter/${bookmark.chapterId}${suffix}`);
+  };
+
+  const handleTopUp = async () => {
+    if (!user) return alert('Vui long dang nhap!');
+    if (!walletAmount || walletAmount < 1000) {
+      alert('So tien nap toi thieu la 1.000d.');
+      return;
+    }
+
+    try {
+      setWalletBusy(true);
+      const response = await topUpWallet(walletAmount);
+      localStorage.setItem('momo_return_path', `${window.location.pathname}${window.location.search}`);
+      const payUrl = response.data?.payUrl;
+      if (!payUrl) {
+        throw new Error('Khong tao duoc lien ket thanh toan MoMo.');
+      }
+      window.location.assign(payUrl);
+    } catch (error) {
+      alert(error.response?.data?.message || error.message);
+    } finally {
+      setWalletBusy(false);
+    }
+  };
+
+  const handlePurchaseChapter = async (chapterId) => {
+    if (!user) return alert('Vui long dang nhap!');
+
+    try {
+      setPurchaseBusyId(chapterId);
+      const response = await purchaseChapter(chapterId);
+      updateUser({ walletBalance: response.data?.walletBalance ?? user.walletBalance });
+      alert(response.data?.message || 'Mo khoa thanh cong.');
+    } catch (error) {
+      alert(error.response?.data?.message || error.message);
+    } finally {
+      setPurchaseBusyId(null);
+    }
   };
 
   const handleRate = async (score) => {
@@ -264,6 +305,35 @@ export default function StoryDetail() {
             </button>
             <button className="btn btn-outline" onClick={() => setShowReport(true)} style={{ color: 'var(--warning)' }}>⚠️ Báo lỗi</button>
           </div>
+          {user && (
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '0.9rem 1rem',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                background: 'var(--bg-card)',
+                display: 'flex',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <strong>{"S\u1ed1 d\u01b0"}: {Number(user.walletBalance || 0).toLocaleString('vi-VN')}{"\u0111"}</strong>
+              <input
+                className="form-control"
+                style={{ maxWidth: '180px' }}
+                type="number"
+                min="1000"
+                step="1000"
+                value={walletAmount}
+                onChange={(event) => setWalletAmount(Number(event.target.value) || 0)}
+              />
+              <button className="btn btn-outline" onClick={handleTopUp} disabled={walletBusy}>
+                {walletBusy ? "\u0110ang n\u1ea1p..." : "N\u1ea1p ti\u1ec1n"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -325,6 +395,20 @@ export default function StoryDetail() {
                     Chương {ch.chapterNumber}: {ch.title}
                   </Link>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{new Date(ch.createdAt).toLocaleDateString('vi-VN')}</span>
+                  {ch.isPaid && (
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span className="category-tag">{"Kh\u00f3a"} {Number(ch.price || 0).toLocaleString('vi-VN')}{"\u0111"}</span>
+                      {user && (
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handlePurchaseChapter(ch.id)}
+                          disabled={purchaseBusyId === ch.id}
+                        >
+                          {purchaseBusyId === ch.id ? "\u0110ang mua..." : "M\u1edf kh\u00f3a"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

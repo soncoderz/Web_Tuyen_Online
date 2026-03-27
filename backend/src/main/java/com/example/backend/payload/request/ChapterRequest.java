@@ -19,6 +19,10 @@ public class ChapterRequest {
 
     private List<String> pages;
 
+    private Boolean isPaid;
+
+    private Long price;
+
     public String getStoryId() { return storyId; }
     public void setStoryId(String storyId) { this.storyId = storyId; }
 
@@ -33,4 +37,10 @@ public class ChapterRequest {
 
     public List<String> getPages() { return pages; }
     public void setPages(List<String> pages) { this.pages = pages; }
+
+    public Boolean getIsPaid() { return isPaid; }
+    public void setIsPaid(Boolean isPaid) { this.isPaid = isPaid; }
+
+    public Long getPrice() { return price; }
+    public void setPrice(Long price) { this.price = price; }
 }

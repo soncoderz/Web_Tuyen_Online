@@ -29,13 +29,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.model.Chapter;
+import com.example.backend.model.ChapterPurchase;
 import com.example.backend.model.EApprovalStatus;
 import com.example.backend.model.Notification;
 import com.example.backend.model.Story;
 import com.example.backend.model.User;
 import com.example.backend.payload.request.ChapterRequest;
 import com.example.backend.payload.request.ModerationRequest;
+import com.example.backend.payload.response.ChapterDetailResponse;
 import com.example.backend.payload.response.MessageResponse;
+import com.example.backend.repository.ChapterPurchaseRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.StoryRepository;
@@ -58,6 +61,9 @@ public class ChapterController {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    ChapterPurchaseRepository chapterPurchaseRepository;
 
     @Autowired
     MongoTemplate mongoTemplate;
@@ -148,7 +154,7 @@ public class ChapterController {
                     .body(new MessageResponse("Error: Chapter not found!"));
         }
 
-        return ResponseEntity.ok(chapter);
+        return ResponseEntity.ok(toChapterDetailResponse(chapter, story, currentUser, admin));
     }
 
     @PostMapping
@@ -178,6 +184,7 @@ public class ChapterController {
         Chapter chapter = new Chapter(request.getStoryId(), request.getChapterNumber(),
                 request.getTitle(), request.getContent());
         chapter.setPages(request.getPages() != null ? new ArrayList<>(request.getPages()) : new ArrayList<>());
+        applyPaymentConfig(chapter, request);
         chapter.setUploaderId(currentUser.getId());
         chapter.setUploaderUsername(currentUser.getUsername());
         chapter.setCreatedAt(new Date());
@@ -231,6 +238,7 @@ public class ChapterController {
         chapter.setContent(request.getContent());
         chapter.setChapterNumber(request.getChapterNumber());
         chapter.setPages(request.getPages() != null ? new ArrayList<>(request.getPages()) : new ArrayList<>());
+        applyPaymentConfig(chapter, request);
         chapter.setUpdatedAt(new Date());
 
         if (admin) {
@@ -313,6 +321,95 @@ public class ChapterController {
                     chapter.getId());
             notificationRepository.save(notification);
         }
+    }
+
+    private ChapterDetailResponse toChapterDetailResponse(
+            Chapter chapter,
+            Story story,
+            UserDetailsImpl currentUser,
+            boolean admin) {
+        ChapterDetailResponse response = new ChapterDetailResponse();
+        response.setId(chapter.getId());
+        response.setStoryId(chapter.getStoryId());
+        response.setChapterNumber(chapter.getChapterNumber());
+        response.setTitle(chapter.getTitle());
+        response.setIsPaid(Boolean.TRUE.equals(chapter.getIsPaid()));
+        response.setPrice(normalizeAmount(chapter.getPrice()));
+
+        boolean accessible = canAccessChapterContent(chapter, story, currentUser, admin);
+        boolean purchased = isPurchased(chapter, story, currentUser, admin);
+        response.setAccessible(accessible);
+        response.setPurchased(purchased);
+
+        if (currentUser != null) {
+            userRepository.findById(currentUser.getId())
+                    .ifPresent(user -> response.setWalletBalance(normalizeAmount(user.getWalletBalance())));
+        }
+
+        if (accessible) {
+            response.setContent(chapter.getContent());
+            response.setPages(chapter.getPages() != null ? new ArrayList<>(chapter.getPages()) : new ArrayList<>());
+            return response;
+        }
+
+        response.setContent(null);
+        response.setPages(new ArrayList<>());
+        response.setMessage("Chuong nay can thanh toan truoc khi doc.");
+        return response;
+    }
+
+    private boolean canAccessChapterContent(
+            Chapter chapter,
+            Story story,
+            UserDetailsImpl currentUser,
+            boolean admin) {
+        if (!Boolean.TRUE.equals(chapter.getIsPaid()) || normalizeAmount(chapter.getPrice()) <= 0) {
+            return true;
+        }
+
+        if (admin || canManageStory(story, currentUser, admin)) {
+            return true;
+        }
+
+        if (currentUser == null) {
+            return false;
+        }
+
+        return chapterPurchaseRepository.existsByUserIdAndChapterId(currentUser.getId(), chapter.getId());
+    }
+
+    private boolean isPurchased(
+            Chapter chapter,
+            Story story,
+            UserDetailsImpl currentUser,
+            boolean admin) {
+        if (!Boolean.TRUE.equals(chapter.getIsPaid()) || normalizeAmount(chapter.getPrice()) <= 0) {
+            return true;
+        }
+
+        if (admin || canManageStory(story, currentUser, admin)) {
+            return true;
+        }
+
+        if (currentUser == null) {
+            return false;
+        }
+
+        Optional<ChapterPurchase> purchase = chapterPurchaseRepository.findByUserIdAndChapterId(
+                currentUser.getId(),
+                chapter.getId());
+        return purchase.isPresent();
+    }
+
+    private void applyPaymentConfig(Chapter chapter, ChapterRequest request) {
+        boolean isPaid = Boolean.TRUE.equals(request.getIsPaid());
+        long price = normalizeAmount(request.getPrice());
+        chapter.setIsPaid(isPaid && price > 0);
+        chapter.setPrice(isPaid ? price : 0L);
+    }
+
+    private long normalizeAmount(Long amount) {
+        return amount == null ? 0L : Math.max(0L, amount);
     }
 
     private void markPending(Chapter chapter) {

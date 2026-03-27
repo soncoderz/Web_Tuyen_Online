@@ -33,6 +33,9 @@ public class Chapter {
 
     private EApprovalStatus approvalStatus = EApprovalStatus.APPROVED;
 
+    private Boolean isPaid = false;
+    private Long price = 0L;
+
     private String reviewedById;
     private String reviewedByUsername;
     private String reviewNote;
@@ -73,6 +76,12 @@ public class Chapter {
 
     public EApprovalStatus getApprovalStatus() { return approvalStatus; }
     public void setApprovalStatus(EApprovalStatus approvalStatus) { this.approvalStatus = approvalStatus; }
+
+    public Boolean getIsPaid() { return isPaid; }
+    public void setIsPaid(Boolean isPaid) { this.isPaid = isPaid; }
+
+    public Long getPrice() { return price; }
+    public void setPrice(Long price) { this.price = price; }
 
     public String getReviewedById() { return reviewedById; }
     public void setReviewedById(String reviewedById) { this.reviewedById = reviewedById; }

@@ -11,7 +11,9 @@ import {
   getCommentsByPage,
   getCommentsByStory,
   getStory,
+  purchaseChapter,
   saveReadingHistory,
+  topUpWallet,
 } from '../services/api';
 
 const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
@@ -413,7 +415,7 @@ function MangaPageWithComments({
 export default function ChapterReader() {
   const { storyId, chapterId } = useParams();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const { themeKey } = useTheme();
   const { getStoryBookmark, isBookmarked, isProcessing, toggleBookmark } = useBookmarks(user);
@@ -436,6 +438,8 @@ export default function ChapterReader() {
   const [showBookmarkButtons, setShowBookmarkButtons] = useState(true);
   const [showPageCommentButtons, setShowPageCommentButtons] = useState(true);
   const [pageCommentsCache, setPageCommentsCache] = useState({});
+  const [walletAmount, setWalletAmount] = useState(50000);
+  const [paymentBusy, setPaymentBusy] = useState(false);
   const searchTimer = useRef(null);
 
   // Reader settings
@@ -486,7 +490,12 @@ export default function ChapterReader() {
       setChapters(chsRes.data);
       setComments(cmRes.data);
       setVisibleCount(5);
-      if (user) saveReadingHistory({ storyId, chapterId }).catch(() => {});
+      if (user && typeof chRes.data?.walletBalance === 'number') {
+        updateUser({ walletBalance: chRes.data.walletBalance });
+      }
+      if (user && chRes.data?.accessible !== false) {
+        saveReadingHistory({ storyId, chapterId }).catch(() => {});
+      }
       try {
         const readChapters = JSON.parse(localStorage.getItem('readChapters') || '[]');
         if (!readChapters.includes(chapterId)) {
@@ -628,6 +637,10 @@ export default function ChapterReader() {
   }, [bookmarkTargetPage, bookmarkTargetParagraph, isManga, loading, chapterId]);
 
   const handleComment = async () => {
+    if (chapter?.accessible === false) {
+      alert('Hay mo khoa chuong truoc khi binh luan.');
+      return;
+    }
     if (!user) return alert('Vui long dang nhap!');
     if (!newComment.trim() && !selectedGifUrl) return;
     if (selectedGifSize && selectedGifSize > 2 * 1024 * 1024) {
@@ -661,6 +674,45 @@ export default function ChapterReader() {
     setComments(cmRes.data);
     setVisibleCount(5);
     setSending(false);
+  };
+
+  const handleTopUp = async () => {
+    if (!user) return alert('Vui long dang nhap!');
+    if (!walletAmount || walletAmount < 1000) {
+      alert('So tien nap toi thieu la 1.000d.');
+      return;
+    }
+
+    try {
+      setPaymentBusy(true);
+      const response = await topUpWallet(walletAmount);
+      localStorage.setItem('momo_return_path', `${window.location.pathname}${window.location.search}`);
+      const payUrl = response.data?.payUrl;
+      if (!payUrl) {
+        throw new Error('Khong tao duoc lien ket thanh toan MoMo.');
+      }
+      window.location.assign(payUrl);
+    } catch (error) {
+      alert(error.response?.data?.message || error.message);
+    } finally {
+      setPaymentBusy(false);
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!user) return alert('Vui long dang nhap!');
+
+    try {
+      setPaymentBusy(true);
+      const response = await purchaseChapter(chapterId);
+      updateUser({ walletBalance: response.data?.walletBalance ?? user.walletBalance });
+      await loadChapter();
+      alert(response.data?.message || 'Mo khoa thanh cong.');
+    } catch (error) {
+      alert(error.response?.data?.message || error.message);
+    } finally {
+      setPaymentBusy(false);
+    }
   };
 
   const searchGifs = async (keyword) => {
@@ -700,6 +752,49 @@ export default function ChapterReader() {
 
   if (loading) return <div className="loading"><div className="spinner" />Dang tai...</div>;
   if (!chapter || !story) return <div className="container"><p>Khong tim thay chuong.</p></div>;
+  if (chapter.accessible === false) {
+    return (
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+        <div className="card" style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>{story.title}</p>
+          <h2 style={{ marginBottom: '0.5rem' }}>Chuong {chapter.chapterNumber}: {chapter.title}</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            {chapter.message || 'Chuong nay can thanh toan truoc khi doc.'}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <span className="category-tag">Gia: {Number(chapter.price || 0).toLocaleString('vi-VN')}đ</span>
+            <span className="category-tag">So du: {Number((chapter.walletBalance ?? user?.walletBalance) || 0).toLocaleString('vi-VN')}đ</span>
+          </div>
+          {user ? (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                className="form-control"
+                style={{ maxWidth: '180px' }}
+                type="number"
+                min="1000"
+                step="1000"
+                value={walletAmount}
+                onChange={(event) => setWalletAmount(Number(event.target.value) || 0)}
+              />
+              <button className="btn btn-outline" onClick={handleTopUp} disabled={paymentBusy}>
+                Nap tien
+              </button>
+              <button className="btn btn-primary" onClick={handlePurchase} disabled={paymentBusy}>
+                {paymentBusy ? 'Dang xu ly...' : 'Mo khoa chuong'}
+              </button>
+            </div>
+          ) : (
+            <Link to="/login" className="btn btn-primary">Dang nhap de mo khoa</Link>
+          )}
+          <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <Link to={`/story/${storyId}`} className="btn btn-outline">Ve danh sach chuong</Link>
+            {prevChapter && <Link to={`/story/${storyId}/chapter/${prevChapter.id}`} className="btn btn-outline">Chuong truoc</Link>}
+            {nextChapter && <Link to={`/story/${storyId}/chapter/${nextChapter.id}`} className="btn btn-outline">Chuong tiep</Link>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="chapter-reader-page" style={{ minHeight: '100vh', background: isManga ? 'var(--bg-primary)' : bgColor, transition: 'background 0.25s ease' }}>

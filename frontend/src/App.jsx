@@ -15,6 +15,7 @@ import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Statistics from './pages/Statistics';
 import CreatorStudio from './pages/CreatorStudio';
+import MomoReturn from './pages/MomoReturn';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
               <Route path="/story/:id" element={<StoryDetail />} />
               <Route path="/story/:storyId/chapter/:chapterId" element={<ChapterReader />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/payment/momo-return" element={<MomoReturn />} />
               <Route path="/studio" element={<CreatorStudio />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/statistics" element={<Statistics />} />

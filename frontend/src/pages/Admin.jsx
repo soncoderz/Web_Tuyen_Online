@@ -81,7 +81,7 @@ export default function Admin() {
 
   // Chapter
   const [showChapterForm, setShowChapterForm] = useState(false);
-  const [chapterForm, setChapterForm] = useState({ storyId: '', chapterNumber: 1, title: '', content: '', pages: [] });
+  const [chapterForm, setChapterForm] = useState({ storyId: '', chapterNumber: 1, title: '', content: '', pages: [], isPaid: false, price: 0 });
   const [editChapterId, setEditChapterId] = useState(null);
   const [selectedStoryChapters, setSelectedStoryChapters] = useState([]);
   const [selectedStoryId, setSelectedStoryId] = useState('');
@@ -211,7 +211,7 @@ export default function Admin() {
       if (editChapterId) await updateChapter(editChapterId, formData);
       else await createChapter(formData);
       setShowChapterForm(false); setEditChapterId(null);
-      setChapterForm({ storyId: '', chapterNumber: 1, title: '', content: '', pages: [] });
+      setChapterForm({ storyId: '', chapterNumber: 1, title: '', content: '', pages: [], isPaid: false, price: 0 });
       setMangaFiles([]); setMangaPreviews([]); setUploadProgress('');
       if (selectedStoryId) handleLoadChapters(selectedStoryId);
       loadData();
@@ -468,7 +468,7 @@ export default function Admin() {
               <button className="btn btn-primary" onClick={() => {
                 setShowChapterForm(true); setEditChapterId(null);
                 setMangaFiles([]); setMangaPreviews([]); setUploadProgress('');
-                setChapterForm({ storyId: selectedStoryId, chapterNumber: selectedStoryChapters.length + 1, title: '', content: '', pages: [] });
+                setChapterForm({ storyId: selectedStoryId, chapterNumber: selectedStoryChapters.length + 1, title: '', content: '', pages: [], isPaid: false, price: 0 });
               }}>+ Thêm chương</button>
             )}
           </div>
@@ -480,7 +480,7 @@ export default function Admin() {
                     <span className="chapter-title">Ch.{ch.chapterNumber}: {ch.title} {ch.pages?.length > 0 ? `(${ch.pages.length} trang ảnh)` : ''}</span>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button className="btn btn-sm btn-outline" onClick={() => {
-                        setChapterForm({ storyId: ch.storyId, chapterNumber: ch.chapterNumber, title: ch.title, content: ch.content || '', pages: ch.pages || [] });
+                        setChapterForm({ storyId: ch.storyId, chapterNumber: ch.chapterNumber, title: ch.title, content: ch.content || '', pages: ch.pages || [], isPaid: Boolean(ch.isPaid), price: ch.price || 0 });
                         setMangaFiles([]); setMangaPreviews([]); setUploadProgress('');
                         setEditChapterId(ch.id); setShowChapterForm(true);
                       }}>Sửa</button>
@@ -649,6 +649,31 @@ export default function Admin() {
                 onChange={e => setChapterForm({ ...chapterForm, chapterNumber: Number(e.target.value) })} /></div>
             <div className="form-group"><label>Tiêu đề *</label>
               <input className="form-control" value={chapterForm.title} onChange={e => setChapterForm({ ...chapterForm, title: e.target.value })} /></div>
+            <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 170px', gap: '0.75rem', alignItems: 'end' }}>
+              <label style={{ margin: 0 }}>
+                <div style={{ marginBottom: '0.45rem' }}>Giá mở khóa</div>
+                <input
+                  className="form-control"
+                  type="number"
+                  min="0"
+                  value={chapterForm.price}
+                  disabled={!chapterForm.isPaid}
+                  onChange={e => setChapterForm({ ...chapterForm, price: Math.max(0, Number(e.target.value) || 0) })}
+                />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                <input
+                  type="checkbox"
+                  checked={chapterForm.isPaid}
+                  onChange={e => setChapterForm({
+                    ...chapterForm,
+                    isPaid: e.target.checked,
+                    price: e.target.checked ? Math.max(1000, Number(chapterForm.price) || 0) : 0,
+                  })}
+                />
+                Chương trả phí
+              </label>
+            </div>
 
             {getSelectedStoryType() === 'MANGA' ? (
               /* MANGA: Image Pages Upload */
