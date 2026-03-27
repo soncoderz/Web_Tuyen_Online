@@ -14,6 +14,7 @@ const api = axios.create({
 const MAX_SINGLE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_MANGA_UPLOAD_BATCH_FILES = 8;
 const MAX_MANGA_UPLOAD_BATCH_BYTES = 20 * 1024 * 1024;
+const MAX_REMOTE_IMPORT_BATCH_IMAGES = 10;
 
 const getStoredUser = () => {
   try {
@@ -78,7 +79,7 @@ export const getManageStories = (approvalStatus) =>
 export const getMyStories = () => api.get("/stories/mine");
 export const getStoriesForReview = (approvalStatus = "PENDING") =>
   api.get("/stories/review", { params: { approvalStatus } });
-export const getStory = (id) => api.get(`/stories/${id}`);
+export const getStory = (id, config = {}) => api.get(`/stories/${id}`, config);
 export const searchStories = (params) => api.get("/stories/search", { params });
 export const getTrendingStories = (limit = 10) =>
   api.get("/stories/trending", { params: { limit } });
@@ -107,14 +108,14 @@ export const deleteCategory = (id) => api.delete(`/categories/${id}`);
 export const getAuthors = () => api.get("/authors");
 
 // Chapters
-export const getChaptersByStory = (storyId) =>
-  api.get(`/chapters/story/${storyId}`);
+export const getChaptersByStory = (storyId, config = {}) =>
+  api.get(`/chapters/story/${storyId}`, config);
 export const getManageChaptersByStory = (storyId) =>
   api.get(`/chapters/story/${storyId}/manage`);
 export const getMyChapters = () => api.get("/chapters/mine");
 export const getChaptersForReview = (params = { approvalStatus: "PENDING" }) =>
   api.get("/chapters/review", { params });
-export const getChapter = (id) => api.get(`/chapters/${id}`);
+export const getChapter = (id, config = {}) => api.get(`/chapters/${id}`, config);
 export const createChapter = (data) => api.post("/chapters", data);
 export const updateChapter = (id, data) => api.put(`/chapters/${id}`, data);
 export const reviewChapter = (id, approvalStatus, reviewNote = "") =>
@@ -122,8 +123,8 @@ export const reviewChapter = (id, approvalStatus, reviewNote = "") =>
 export const deleteChapter = (id) => api.delete(`/chapters/${id}`);
 
 // Comments
-export const getCommentsByStory = (storyId) =>
-  api.get(`/comments/story/${storyId}`);
+export const getCommentsByStory = (storyId, config = {}) =>
+  api.get(`/comments/story/${storyId}`, config);
 export const getCommentsByChapter = (chapterId) =>
   api.get(`/comments/chapter/${chapterId}`);
 export const getCommentsByPage = (chapterId, pageIndex) =>
@@ -172,6 +173,7 @@ export const getTrendStats = () => api.get("/admin/stats/trends");
 export const getHotStories = (limit = 10) =>
   api.get("/stories/hot", { params: { limit } });
 export const getDistributionData = () => api.get("/admin/stats/distribution");
+export const scanMangaSource = (data) => api.post("/admin/import/scan", data);
 
 // Upload (Cloudinary)
 export const uploadImage = (file) => {
@@ -258,6 +260,89 @@ export const uploadMangaPages = async (files, options = {}) => {
     error.uploadedCount = uploadedUrls.length;
     error.remainingFiles = fileList.slice(uploadedUrls.length);
     error.totalFiles = fileList.length;
+    throw error;
+  }
+};
+
+const createRemoteImportBatches = (imageUrls) => {
+  const batches = [];
+  for (let index = 0; index < imageUrls.length; index += MAX_REMOTE_IMPORT_BATCH_IMAGES) {
+    batches.push(imageUrls.slice(index, index + MAX_REMOTE_IMPORT_BATCH_IMAGES));
+  }
+  return batches;
+};
+
+export const importScannedMangaPages = async (
+  { sourceUrl, imageUrls },
+  options = {},
+) => {
+  const normalizedUrls = Array.from(imageUrls || []).filter(Boolean);
+  const { onBatchComplete } = options;
+
+  if (!sourceUrl?.trim()) {
+    throw new Error("Can sourceUrl de import anh.");
+  }
+
+  if (!normalizedUrls.length) {
+    return { data: { urls: [], failures: [] } };
+  }
+
+  const batches = createRemoteImportBatches(normalizedUrls);
+  const uploadedUrls = [];
+  const failures = [];
+  let currentBatchIndex = 0;
+
+  try {
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+      currentBatchIndex = batchIndex;
+      const batch = batches[batchIndex];
+      const batchStartIndex = batchIndex * MAX_REMOTE_IMPORT_BATCH_IMAGES;
+      const response = await api.post("/admin/import/manga-pages", {
+        sourceUrl,
+        imageUrls: batch,
+      });
+
+      const batchUrls = response.data?.urls || [];
+      const batchFailures = (response.data?.failures || []).map((failure) => ({
+        ...failure,
+        index:
+          typeof failure?.index === "number"
+            ? failure.index + batchStartIndex
+            : batchStartIndex,
+      }));
+
+      uploadedUrls.push(...batchUrls);
+      failures.push(...batchFailures);
+
+      onBatchComplete?.({
+        batchIndex,
+        totalBatches: batches.length,
+        uploadedCount: uploadedUrls.length,
+        failedCount: failures.length,
+        totalFiles: normalizedUrls.length,
+        batchUrls,
+        batchFailures,
+      });
+    }
+
+    return { data: { urls: uploadedUrls, failures } };
+  } catch (error) {
+    const failedBatch = batches[currentBatchIndex] || [];
+    const batchOffset = currentBatchIndex * MAX_REMOTE_IMPORT_BATCH_IMAGES;
+    const batchMessage = error.response?.data?.message || error.message;
+
+    const requestFailures =
+      failedBatch.length > 0
+        ? failedBatch.map((url, offset) => ({
+            index: batchOffset + offset,
+            url,
+            message: batchMessage,
+          }))
+        : [];
+
+    error.uploadedUrls = uploadedUrls;
+    error.failures = [...failures, ...requestFailures];
+    error.totalFiles = normalizedUrls.length;
     throw error;
   }
 };

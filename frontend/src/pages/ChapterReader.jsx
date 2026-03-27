@@ -15,6 +15,21 @@ import {
 } from '../services/api';
 
 const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
+const MONGO_ID_PATTERN = /^[a-f\d]{24}$/i;
+
+function isValidMongoId(value) {
+  return typeof value === 'string' && MONGO_ID_PATTERN.test(value.trim());
+}
+
+function isMissingResourceError(error) {
+  const status = error?.response?.status;
+  const message = error?.response?.data?.message || '';
+  return (
+    status === 400 ||
+    status === 404 ||
+    /story not found|chapter not found/i.test(message)
+  );
+}
 
 function splitChapterContentIntoParagraphs(content) {
   if (!content) {
@@ -433,6 +448,7 @@ export default function ChapterReader() {
   const [gifError, setGifError] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showBookmarkButtons, setShowBookmarkButtons] = useState(true);
   const [showPageCommentButtons, setShowPageCommentButtons] = useState(true);
   const [pageCommentsCache, setPageCommentsCache] = useState({});
@@ -450,7 +466,7 @@ export default function ChapterReader() {
 
   useEffect(() => {
     loadChapter();
-  }, [chapterId]);
+  }, [storyId, chapterId]);
 
   useEffect(() => {
     setPageCommentsCache({});
@@ -474,17 +490,50 @@ export default function ChapterReader() {
 
   const loadChapter = async () => {
     setLoading(true);
+    setLoadError('');
+
+    if (!isValidMongoId(storyId) || !isValidMongoId(chapterId)) {
+      setStory(null);
+      setChapter(null);
+      setChapters([]);
+      setComments([]);
+      setLoadError('Lien ket chuong khong hop le hoac da het hieu luc.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const [chRes, sRes, chsRes, cmRes] = await Promise.all([
-        getChapter(chapterId),
-        getStory(storyId),
-        getChaptersByStory(storyId),
-        getCommentsByStory(storyId),
+      const [chapterResult, storyResult, chaptersResult, commentsResult] = await Promise.allSettled([
+        getChapter(chapterId, { silent: true }),
+        getStory(storyId, { silent: true }),
+        getChaptersByStory(storyId, { silent: true }),
+        getCommentsByStory(storyId, { silent: true }),
       ]);
-      setChapter(chRes.data);
-      setStory(sRes.data);
-      setChapters(chsRes.data);
-      setComments(cmRes.data);
+
+      if (
+        (chapterResult.status === 'rejected' && isMissingResourceError(chapterResult.reason)) ||
+        (storyResult.status === 'rejected' && isMissingResourceError(storyResult.reason))
+      ) {
+        setStory(null);
+        setChapter(null);
+        setChapters([]);
+        setComments([]);
+        setLoadError('Chuong hoac truyen khong con ton tai.');
+        setLoading(false);
+        return;
+      }
+
+      if (chapterResult.status === 'rejected') {
+        throw chapterResult.reason;
+      }
+      if (storyResult.status === 'rejected') {
+        throw storyResult.reason;
+      }
+
+      setChapter(chapterResult.value.data);
+      setStory(storyResult.value.data);
+      setChapters(chaptersResult.status === 'fulfilled' ? chaptersResult.value.data || [] : []);
+      setComments(commentsResult.status === 'fulfilled' ? commentsResult.value.data || [] : []);
       setVisibleCount(5);
       if (user) saveReadingHistory({ storyId, chapterId }).catch(() => {});
       try {
@@ -495,6 +544,11 @@ export default function ChapterReader() {
         }
       } catch {}
     } catch (e) {
+      setStory(null);
+      setChapter(null);
+      setChapters([]);
+      setComments([]);
+      setLoadError('Khong tai duoc chuong. Vui long thu lai sau.');
       console.error(e);
     }
     setLoading(false);
@@ -699,7 +753,24 @@ export default function ChapterReader() {
   };
 
   if (loading) return <div className="loading"><div className="spinner" />Dang tai...</div>;
-  if (!chapter || !story) return <div className="container"><p>Khong tim thay chuong.</p></div>;
+  if (!chapter || !story) {
+    return (
+      <div className="container" style={{ padding: '2rem 1rem' }}>
+        <div className="card" style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ marginBottom: '0.75rem' }}>Khong mo duoc chuong</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            {loadError || 'Chuong nay khong con kha dung.'}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {isValidMongoId(storyId) && (
+              <Link to={`/story/${storyId}`} className="btn btn-outline">Ve trang truyen</Link>
+            )}
+            <Link to="/stories" className="btn btn-primary">Mo danh sach truyen</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="chapter-reader-page" style={{ minHeight: '100vh', background: isManga ? 'var(--bg-primary)' : bgColor, transition: 'background 0.25s ease' }}>
