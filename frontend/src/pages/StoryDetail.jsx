@@ -6,7 +6,7 @@ import useBookmarks, { getBookmarkLocation } from '../hooks/useBookmarks';
 import {
   getStory, getChaptersByStory, getCommentsByStory, getStoryRating, getUserRating,
   incrementViews, followStory, isFollowing, createComment, rateStory,
-  createReport, getRelatedStories
+  createReport, getReadingHistoryByStory, getRelatedStories
 } from '../services/api';
 
 const GIPHY_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
@@ -34,12 +34,16 @@ export default function StoryDetail() {
   const [selectedGifSize, setSelectedGifSize] = useState(null);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [readingHistoryItem, setReadingHistoryItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState('chapters');
 
   useEffect(() => {
     loadStory();
+  }, [id, user]);
+
+  useEffect(() => {
     incrementViews(id).catch(() => {});
   }, [id]);
 
@@ -53,12 +57,14 @@ export default function StoryDetail() {
         commentsResult,
         ratingResult,
         relatedResult,
+        historyResult,
       ] = await Promise.allSettled([
         getStory(id),
         getChaptersByStory(id),
         getCommentsByStory(id),
         getStoryRating(id),
         getRelatedStories(id),
+        user ? getReadingHistoryByStory(id) : Promise.resolve({ data: null }),
       ]);
 
       if (storyResult.status !== 'fulfilled') {
@@ -80,6 +86,9 @@ export default function StoryDetail() {
       );
       setRelatedStories(
         relatedResult.status === 'fulfilled' ? relatedResult.value.data || [] : [],
+      );
+      setReadingHistoryItem(
+        historyResult.status === 'fulfilled' ? historyResult.value.data || null : null,
       );
 
       if (user) {
@@ -108,6 +117,7 @@ export default function StoryDetail() {
       setComments([]);
       setRating({ averageRating: 0, totalRatings: 0 });
       setRelatedStories([]);
+      setReadingHistoryItem(null);
       setFollowing(false);
       setUserRating(0);
       setLoadError('Khong tai duoc truyen nay. Thu tai lai sau.');
@@ -140,6 +150,14 @@ export default function StoryDetail() {
     }
     const suffix = params.toString() ? `?${params.toString()}` : '';
     navigate(`/story/${bookmark.storyId}/chapter/${bookmark.chapterId}${suffix}`);
+  };
+
+  const handleContinueReading = () => {
+    if (!readingHistoryItem?.chapterId) {
+      return;
+    }
+
+    navigate(`/story/${id}/chapter/${readingHistoryItem.chapterId}`);
   };
 
   const handleRate = async (score) => {
@@ -215,6 +233,9 @@ export default function StoryDetail() {
   if (loading) return <div className="loading"><div className="spinner" />Đang tải...</div>;
   if (!story) return <div className="container"><p>{loadError || 'Không tìm thấy truyện.'}</p></div>;
   const storyBookmark = getStoryBookmark(id);
+  const continueChapter =
+    chapters.find((chapterItem) => chapterItem.id === readingHistoryItem?.chapterId) || null;
+  const readingNotePreview = readingHistoryItem?.note?.trim() || '';
 
   return (
     <div className="container">
@@ -252,6 +273,13 @@ export default function StoryDetail() {
             {chapters.length > 0 && (
               <Link to={`/story/${id}/chapter/${chapters[0].id}`} className="btn btn-primary">📖 Đọc từ đầu</Link>
             )}
+            {readingHistoryItem?.chapterId && (
+              <button className="btn btn-outline" onClick={handleContinueReading}>
+                {continueChapter?.chapterNumber
+                  ? `Doc tiep Ch.${continueChapter.chapterNumber}`
+                  : 'Doc tiep'}
+              </button>
+            )}
             <button className={`btn ${following ? 'btn-danger' : 'btn-outline'}`} onClick={handleFollow}>
               {following ? '❤️ Đang theo dõi' : '🤍 Theo dõi'}
             </button>
@@ -264,6 +292,43 @@ export default function StoryDetail() {
             </button>
             <button className="btn btn-outline" onClick={() => setShowReport(true)} style={{ color: 'var(--warning)' }}>⚠️ Báo lỗi</button>
           </div>
+          {(readingHistoryItem?.chapterId || readingNotePreview) && (
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '0.9rem 1rem',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <strong style={{ color: 'var(--accent)' }}>Lan doc gan day</strong>
+                {readingHistoryItem?.lastReadAt && (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {new Date(readingHistoryItem.lastReadAt).toLocaleString('vi-VN')}
+                  </span>
+                )}
+              </div>
+              {continueChapter && (
+                <p style={{ margin: '0.45rem 0 0', color: 'var(--text-secondary)' }}>
+                  Dang doc den Chuong {continueChapter.chapterNumber}: {continueChapter.title}
+                </p>
+              )}
+              {readingNotePreview && (
+                <p
+                  style={{
+                    margin: '0.6rem 0 0',
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {readingNotePreview}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

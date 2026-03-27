@@ -20,6 +20,8 @@ public class ReadingHistory {
 
     private String chapterId;
 
+    private String note;
+
     private Date lastReadAt = new Date();
 
     public ReadingHistory() {}
@@ -41,6 +43,9 @@ public class ReadingHistory {
 
     public String getChapterId() { return chapterId; }
     public void setChapterId(String chapterId) { this.chapterId = chapterId; }
+
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
 
     public Date getLastReadAt() { return lastReadAt; }
     public void setLastReadAt(Date lastReadAt) { this.lastReadAt = lastReadAt; }

@@ -144,6 +144,8 @@ export const deleteBookmark = (id) => api.delete(`/bookmarks/${id}`);
 
 // Reading History
 export const getReadingHistory = () => api.get("/reading-history");
+export const getReadingHistoryByStory = (storyId) =>
+  api.get(`/reading-history/story/${storyId}`);
 export const saveReadingHistory = (data) => api.post("/reading-history", data);
 export const deleteReadingHistoryItem = (id) =>
   api.delete(`/reading-history/${id}`);

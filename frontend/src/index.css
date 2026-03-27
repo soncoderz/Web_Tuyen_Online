@@ -449,7 +449,7 @@ a:hover {
 
 .story-footer-left { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; }
 .story-actions { display: flex; gap: 0.4rem; }
-.story-note { margin-top: 6px; font-size: 0.84rem; color: var(--text-secondary); }
+.story-note { margin-top: 6px; font-size: 0.84rem; color: var(--text-secondary); white-space: pre-wrap; }
 .muted { color: var(--text-secondary); font-size: 0.82rem; }
 .ch-name { font-weight: 700; color: var(--text-primary); }
 .ch-time { font-size: 0.7rem; }

@@ -443,6 +443,7 @@ export default function Profile() {
                           }
                         }
                         chapter={chapter}
+                        note={item.note?.trim() || ''}
                         timestampLabel={`Doc lan cuoi ${formatTimeAgo(item.lastReadAt)}`}
                         actionHref={
                           hasStory

@@ -10,6 +10,7 @@ import {
   getChaptersByStory,
   getCommentsByPage,
   getCommentsByStory,
+  getReadingHistoryByStory,
   getStory,
   saveReadingHistory,
 } from '../services/api';
@@ -47,6 +48,14 @@ function buildParagraphSnippet(paragraph) {
     return normalized;
   }
   return `${normalized.slice(0, 140)}...`;
+}
+
+function normalizeReadingNote(note) {
+  if (typeof note !== 'string') {
+    return '';
+  }
+
+  return note.replace(/\r\n/g, '\n').trim();
 }
 
 function MangaPageWithComments({
@@ -436,7 +445,15 @@ export default function ChapterReader() {
   const [showBookmarkButtons, setShowBookmarkButtons] = useState(true);
   const [showPageCommentButtons, setShowPageCommentButtons] = useState(true);
   const [pageCommentsCache, setPageCommentsCache] = useState({});
+  const [readingHistoryItem, setReadingHistoryItem] = useState(null);
+  const [readingNote, setReadingNote] = useState('');
+  const [showReadingNote, setShowReadingNote] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteStatus, setNoteStatus] = useState('');
   const searchTimer = useRef(null);
+  const noteSaveTimer = useRef(null);
+  const noteHydratedRef = useRef(false);
+  const lastSavedNoteRef = useRef('');
 
   // Reader settings
   const [fontSize, setFontSize] = useState(18);
@@ -450,7 +467,7 @@ export default function ChapterReader() {
 
   useEffect(() => {
     loadChapter();
-  }, [chapterId]);
+  }, [chapterId, storyId, user]);
 
   useEffect(() => {
     setPageCommentsCache({});
@@ -469,23 +486,38 @@ export default function ChapterReader() {
   useEffect(() => {
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current);
+      if (noteSaveTimer.current) clearTimeout(noteSaveTimer.current);
     };
   }, []);
 
   const loadChapter = async () => {
     setLoading(true);
+    noteHydratedRef.current = false;
     try {
-      const [chRes, sRes, chsRes, cmRes] = await Promise.all([
+      const historyPromise = user
+        ? getReadingHistoryByStory(storyId).catch(() => ({ data: null }))
+        : Promise.resolve({ data: null });
+      const [chRes, sRes, chsRes, cmRes, historyRes] = await Promise.all([
         getChapter(chapterId),
         getStory(storyId),
         getChaptersByStory(storyId),
         getCommentsByStory(storyId),
+        historyPromise,
       ]);
       setChapter(chRes.data);
       setStory(sRes.data);
       setChapters(chsRes.data);
       setComments(cmRes.data);
       setVisibleCount(5);
+      const historyItem = historyRes?.data || null;
+      const savedNote = historyItem?.note || '';
+      setReadingHistoryItem(historyItem);
+      setReadingNote(savedNote);
+      setShowReadingNote(Boolean(savedNote));
+      setNoteStatus('');
+      setNoteSaving(false);
+      lastSavedNoteRef.current = normalizeReadingNote(savedNote);
+      noteHydratedRef.current = true;
       if (user) saveReadingHistory({ storyId, chapterId }).catch(() => {});
       try {
         const readChapters = JSON.parse(localStorage.getItem('readChapters') || '[]');
@@ -496,6 +528,12 @@ export default function ChapterReader() {
       } catch {}
     } catch (e) {
       console.error(e);
+      setReadingHistoryItem(null);
+      setReadingNote('');
+      setShowReadingNote(false);
+      setNoteStatus('');
+      setNoteSaving(false);
+      lastSavedNoteRef.current = '';
     }
     setLoading(false);
   };
@@ -544,6 +582,59 @@ export default function ChapterReader() {
     navigate(
       `/story/${bookmark.storyId}/chapter/${bookmark.chapterId}${suffix ? `?${suffix}` : ''}`,
     );
+  };
+
+  const persistReadingNote = async (nextNote) => {
+    if (!user) {
+      return;
+    }
+
+    const normalizedNextNote = normalizeReadingNote(nextNote);
+    if (normalizedNextNote === lastSavedNoteRef.current) {
+      return;
+    }
+
+    setNoteSaving(true);
+    setNoteStatus('Dang luu ghi chu...');
+    try {
+      const response = await saveReadingHistory({
+        storyId,
+        chapterId,
+        note: nextNote,
+      });
+      const savedItem = response.data || null;
+      const savedNote = savedItem?.note || '';
+      setReadingHistoryItem(savedItem);
+      lastSavedNoteRef.current = normalizeReadingNote(savedNote);
+      setNoteStatus(savedNote ? 'Da luu ghi chu.' : 'Da xoa ghi chu.');
+    } catch (error) {
+      console.error(error);
+      setNoteStatus('Khong luu duoc ghi chu.');
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const handleReadingNoteBlur = () => {
+    if (noteSaveTimer.current) {
+      clearTimeout(noteSaveTimer.current);
+      noteSaveTimer.current = null;
+    }
+
+    if (!user || !noteHydratedRef.current) {
+      return;
+    }
+
+    persistReadingNote(readingNote);
+  };
+
+  const handleReadingNoteToggle = () => {
+    if (!user) {
+      alert('Vui long dang nhap de luu ghi chu.');
+      return;
+    }
+
+    setShowReadingNote((value) => !value);
   };
 
   const handlePageBookmark = async (pageIndex) => {
@@ -626,6 +717,54 @@ export default function ChapterReader() {
       window.clearTimeout(retryTimer);
     };
   }, [bookmarkTargetPage, bookmarkTargetParagraph, isManga, loading, chapterId]);
+
+  useEffect(() => {
+    if (!user || !noteHydratedRef.current) {
+      return undefined;
+    }
+
+    const normalizedNote = normalizeReadingNote(readingNote);
+    if (normalizedNote === lastSavedNoteRef.current) {
+      return undefined;
+    }
+
+    if (noteSaveTimer.current) {
+      clearTimeout(noteSaveTimer.current);
+    }
+
+    setNoteStatus('Dang luu ghi chu...');
+    noteSaveTimer.current = setTimeout(() => {
+      persistReadingNote(readingNote);
+    }, 700);
+
+    return () => {
+      if (noteSaveTimer.current) {
+        clearTimeout(noteSaveTimer.current);
+        noteSaveTimer.current = null;
+      }
+    };
+  }, [chapterId, readingNote, storyId, user]);
+
+  useEffect(() => {
+    if (!showReadingNote || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowReadingNote(false);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showReadingNote]);
 
   const handleComment = async () => {
     if (!user) return alert('Vui long dang nhap!');
@@ -955,6 +1094,22 @@ export default function ChapterReader() {
               Vi tri da luu
             </button>
           )}
+          <button
+            onClick={handleReadingNoteToggle}
+            style={{
+              background: showReadingNote ? 'var(--accent)' : 'var(--bg-card)',
+              color: showReadingNote ? '#fff' : 'var(--text-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              padding: '0.35rem 0.65rem',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              flexShrink: 0,
+            }}
+            title={showReadingNote ? 'Dong ghi chu cua ban' : 'Mo ghi chu cua ban'}
+          >
+            {showReadingNote ? 'Dong ghi chu' : readingHistoryItem?.note ? 'Mo ghi chu' : 'Ghi chu'}
+          </button>
           {isManga && (
             <button
               onClick={() => setShowPageCommentButtons((value) => !value)}
@@ -1008,6 +1163,108 @@ export default function ChapterReader() {
           )}
         </div>
       </div>
+
+      {showReadingNote && (
+        <div
+          onClick={() => setShowReadingNote(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 140,
+            background: 'rgba(2, 6, 23, 0.7)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            className="card"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              margin: 0,
+              width: 'min(760px, 100%)',
+              maxHeight: 'min(78vh, 720px)',
+              overflow: 'auto',
+              background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94))',
+              border: '1px solid rgba(96, 165, 250, 0.16)',
+              boxShadow: '0 28px 80px rgba(15, 23, 42, 0.5)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                marginBottom: '0.9rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                  Ghi chu truyen
+                </h3>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  Ghi chu se duoc luu theo truyen va mo lai khi ban doc tiep.
+                </p>
+              </div>
+              <button className="btn btn-outline" onClick={() => setShowReadingNote(false)}>
+                Dong
+              </button>
+            </div>
+
+            <textarea
+              className="form-control"
+              value={readingNote}
+              onChange={(event) => setReadingNote(event.target.value)}
+              onBlur={handleReadingNoteBlur}
+              placeholder="Nhap ghi chu cho truyen nay..."
+              rows={8}
+              style={{
+                width: '100%',
+                resize: 'vertical',
+                minHeight: '220px',
+                whiteSpace: 'pre-wrap',
+                background: 'rgba(2, 6, 23, 0.88)',
+                borderColor: 'rgba(96, 165, 250, 0.12)',
+              }}
+            />
+
+            <div
+              style={{
+                marginTop: '0.85rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {noteStatus || 'Ghi chu duoc tu dong luu khi ban dung go.'}
+              </span>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setReadingNote('')}
+                  disabled={noteSaving || !readingNote.trim()}
+                >
+                  Xoa ghi chu
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => persistReadingNote(readingNote)}
+                  disabled={noteSaving}
+                >
+                  {noteSaving ? 'Dang luu...' : 'Luu ngay'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Novel Settings Panel */}
       {showSettings && !isManga && (
